@@ -518,7 +518,9 @@ def dump_results(file_string):
     gene_params = np.array(gene_params)
     gene_spec_err = np.array(gene_spec_err)
     SO.set_results(divg,T_,gene_params,gene_spec_err)
-    pickle.dump(SO, open(file_string+'/result.pickle','wb'))
+
+    with open(file_string+'/result.pickle','wb') as hf:
+    	pickle.dump(SO, hf)
 
 ########################
 ## Estimation for a given sequencing parameter tuple
