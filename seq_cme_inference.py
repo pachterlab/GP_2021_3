@@ -262,28 +262,145 @@ def get_transcriptome(transcriptome_filepath,repeat_thr=15):
             repeat_dict[d[0]] =  int(d[thr_ind])
             len_dict[d[0]] =  int(d[1])
     return (len_dict,repeat_dict)
+def select_gene_set(loom_filepaths,feat_dict,viz=False,
+                          results_to_exclude=[],seed=6,n_gen=10,
+                          filt_param=(0.01,0.01,350,350,4,4)):
 
-def get_gene_data(loom_filepath,feat_dict,viz=False,results_to_exclude=[],seed=6,n_gen=10):
+    n_datasets = len(loom_filepaths)
+
+    for i_data in range(n_datasets):
+        loom_filepath = loom_filepaths[i_data]
+        print('Dataset: '+loom_filepath)
+        vlm = vcy.VelocytoLoom(loom_filepath)
+        gene_names_vlm = vlm.ra['Gene']
+        #check which genes I have length data for
+        sel_ind_annot = [k for k in range(len(gene_names_vlm)) if gene_names_vlm[k] in feat_dict]
+        
+        NAMES = [gene_names_vlm[k] for k in range(len(sel_ind_annot))]
+        COUNTS = collections.Counter(NAMES)
+        sel_ind = [x for x in sel_ind_annot if COUNTS[gene_names_vlm[x]]==1]
+
+        print(str(len(gene_names_vlm))+' features observed, '+str(len(sel_ind_annot))+' match genome annotations. '
+            +str(len(sel_ind))+' are unique. '
+            +str(len(vlm.ca[list(vlm.ca.keys())[0]]))+' cells detected.')
+
+        Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
+
+
+        gene_names = gene_names_vlm[sel_ind]
+        S_max = np.amax(vlm.S[sel_ind,:],1)
+        U_max = np.amax(vlm.U[sel_ind,:],1)
+        S_mean = np.mean(vlm.S[sel_ind,:],1)
+        U_mean = np.mean(vlm.U[sel_ind,:],1)
+        
+        #aesthetics
+        sz=(12,4)
+        alf=0.15
+        ptsz=3
+
+        len_arr = np.asarray([feat_dict[k] for k in gene_names])
+
+        warnings.filterwarnings("ignore")
+        clusters = KMeans(n_clusters=2,init=np.asarray([[4,-2.5],[4.5,-0.5]]),algorithm="full").fit(
+            np.vstack((np.log10(len_arr),np.log10(S_mean + 0.001))).T)
+        warnings.resetwarnings()
+
+        gene_cluster_labels = clusters.labels_
+        
+        if viz:
+            var_name = ('S','U')
+            var_arr = (S_mean,U_mean)
+
+            fig1, ax1 = plt.subplots(nrows=1,ncols=2,figsize=sz)
+            for i in range(2):
+                ax1[i].scatter(np.log10(len_arr), np.log10(var_arr[i] + 0.001),s=ptsz,
+                            c=gene_cluster_labels,alpha=alf,cmap="Spectral")
+                ax1[i].set_xlabel('log10 gene length')
+                ax1[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
+        
+        gene_filter = np.array(gene_cluster_labels,dtype=bool)
+        
+        if viz:
+            fig2, ax2 = plt.subplots(nrows=1,ncols=2,figsize=sz)
+            for i in range(2):
+                ax2[i].scatter(np.log10(len_arr)[gene_filter], 
+                            np.log10(var_arr[i] + 0.001)[gene_filter],s=ptsz,c='k',alpha=alf)
+                ax2[i].set_xlabel('log10 gene length')
+                ax2[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
+                
+        print(str(sum(gene_filter))+' genes retained as high-expression.')
+        gene_filter2  = gene_filter \
+            & (U_mean > filt_param[0]) \
+            & (S_mean > filt_param[1]) \
+            & (S_max < filt_param[2]) \
+            & (U_max < filt_param[3]) \
+            & (S_max > filt_param[4]) \
+            & (U_max > filt_param[5])
+        
+                    
+        gene_names_filt = gene_names[gene_filter2]
+        vlm_gene_filter =  np.asarray([True if x in gene_names_filt else False for x in vlm.ra['Gene']],dtype=bool)
+        vlm.filter_genes(by_custom_array=vlm_gene_filter)
+        print(str(len(vlm.ra['Gene']))+' genes retained in loom structure based on filter.')
+        
+        random.seed(a=seed)
+
+        sample_domain = np.arange(len(vlm.ra['Gene']))
+        
+        if len(results_to_exclude)>0:
+            GN=[]
+            for i_ in range(len(results_to_exclude)):
+                with open(results_to_exclude[i_],'rb') as hf:
+                    SO = pickle.load(hf)
+                    GN.extend(SO.gene_names)
+            print(str(len(GN))+' genes previously run...')
+            GN = set(GN)
+            print(str(len(GN))+' genes were unique.')
+            sample_domain = [i_ for i_ in sample_domain if vlm.ra['Gene'][i_] not in GN]
+        
+        print(str(len(sample_domain))+' genes retained in loom structure based on previous results.')
+        SAMPLE_DOMAIN_NAMES = vlm.ra['Gene'][sample_domain]
+        if i_data == 0:
+            set_intersection = set(SAMPLE_DOMAIN_NAMES)
+        else:
+            set_intersection = set_intersection.intersection(SAMPLE_DOMAIN_NAMES)
+        print('Gene set size: '+str(len(set_intersection)))
+        print('-----------')
+        
+
+    trunc_gene_set = np.array(list(set_intersection))
+    if n_gen < len(trunc_gene_set):
+        gene_select = np.random.choice(trunc_gene_set,n_gen,replace=False)
+        print(str(n_gen)+' genes selected.')
+    else:
+        gene_select = trunc_gene_set
+        print(str(len(trunc_gene_set))+' genes selected: cannot satisfy query of '+str(n_gen)+' genes.')
+    
+    gene_select=list(gene_select)
+    trunc_gene_set = list(trunc_gene_set)
+    return gene_select, trunc_gene_set
+    
+def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False):
+    n_gen = len(gene_set)
+
     vlm = vcy.VelocytoLoom(loom_filepath)
     gene_names_vlm = vlm.ra['Gene']
-
+    print(type(gene_names_vlm))
     #check which genes I have length data for
     sel_ind_annot = [k for k in range(len(gene_names_vlm)) if gene_names_vlm[k] in feat_dict]
     
     NAMES = [gene_names_vlm[k] for k in range(len(sel_ind_annot))]
     COUNTS = collections.Counter(NAMES)
     sel_ind = [x for x in sel_ind_annot if COUNTS[gene_names_vlm[x]]==1]
+    n_gen_tot = len(sel_ind)
 
     print(str(len(gene_names_vlm))+' features observed, '+str(len(sel_ind_annot))+' match genome annotations. '
-        +str(len(sel_ind))+' are unique. '
+        +str(n_gen_tot)+' are unique. '
         +str(len(vlm.ca[list(vlm.ca.keys())[0]]))+' cells detected.')
 
     Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
 
-
-    gene_names = gene_names_vlm[sel_ind]
-    S_max = np.amax(vlm.S[sel_ind,:],1)
-    U_max = np.amax(vlm.U[sel_ind,:],1)
+    gene_names = list(gene_names_vlm[sel_ind])
     S_mean = np.mean(vlm.S[sel_ind,:],1)
     U_mean = np.mean(vlm.U[sel_ind,:],1)
     
@@ -294,94 +411,51 @@ def get_gene_data(loom_filepath,feat_dict,viz=False,results_to_exclude=[],seed=6
 
     len_arr = np.asarray([feat_dict[k] for k in gene_names])
 
+    warnings.filterwarnings("ignore")
     clusters = KMeans(n_clusters=2,init=np.asarray([[4,-2.5],[4.5,-0.5]]),algorithm="full").fit(
         np.vstack((np.log10(len_arr),np.log10(S_mean + 0.001))).T)
-
+    warnings.resetwarnings()
     gene_cluster_labels = clusters.labels_
     
+    gene_set_ind = [gene_names.index(gene_set[i_]) for i_ in range(n_gen)]
+    trunc_gene_set_ind = [gene_names.index(trunc_gene_set[i_]) for i_ in range(len(trunc_gene_set))]
+    low_expr_ind = np.where(gene_cluster_labels==0)[0]
+    high_expr_filt_out = np.setdiff1d(
+        np.where(gene_cluster_labels==1)[0],
+        trunc_gene_set_ind)
+
+    I_ = [low_expr_ind,high_expr_filt_out,trunc_gene_set_ind,gene_set_ind] 
+    COL = [[0.9]*3, [0.8]*3, [0.2]*3, [0,0,1]]
+    COL2 = [[0.3]*3, [0]*3, [0]*3]
+    ALF = [0.2,0.3,0.3,0.8]
+    ALF2 =  [0.02,0.1,0.1]
+
+
     if viz:
+        
+        warnings.filterwarnings("ignore")
         var_name = ('S','U')
         var_arr = (S_mean,U_mean)
 
+
         fig1, ax1 = plt.subplots(nrows=1,ncols=2,figsize=sz)
         for i in range(2):
-            ax1[i].scatter(np.log10(len_arr), np.log10(var_arr[i] + 0.001),s=ptsz,
-                           c=gene_cluster_labels,alpha=alf,cmap="Spectral")
+            for j in range(3):
+                ax1[i].scatter(np.log10(len_arr[I_[j]]), np.log10(var_arr[i][I_[j]] + 0.001),s=ptsz,
+                            color=COL2[j],alpha=ALF2[j],cmap="Spectral")
             ax1[i].set_xlabel('log10 gene length')
             ax1[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
-    
-    gene_filter = np.array(gene_cluster_labels,dtype=bool)
-    
-    if viz:
+
         fig2, ax2 = plt.subplots(nrows=1,ncols=2,figsize=sz)
         for i in range(2):
-            ax2[i].scatter(np.log10(len_arr)[gene_filter], 
-                           np.log10(var_arr[i] + 0.001)[gene_filter],s=ptsz,c='k',alpha=alf)
+            for j in range(4):
+                ax2[i].scatter(np.log10(len_arr[I_[j]]), np.log10(var_arr[i][I_[j]] + 0.001),s=ptsz,
+                            color=COL[j],alpha=ALF[j],cmap="Spectral")
             ax2[i].set_xlabel('log10 gene length')
             ax2[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
-            
-    print(str(sum(gene_filter))+' genes retained as high-expression.')
-    gene_filter2  = gene_filter & (U_mean > 0.01) & (S_mean > 0.01) & (S_max < 350) & (U_max < 350) & (S_max > 4) & (U_max > 4) 
+        warnings.resetwarnings()
     
-    if viz:
-        sz=(12,4)
-        fig3, ax3 = plt.subplots(nrows=1,ncols=2,figsize=sz)
-        for i in range(2):
-            ax3[i].scatter(np.log10(len_arr[gene_filter2]), 
-                           np.log10(var_arr[i][gene_filter2]),s=ptsz,c='k',alpha=alf)
-            ax3[i].set_xlabel('log10 gene length')
-            ax3[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
-            
-            rang = np.asarray([4,5.5])
-            if i==1:
-                ax3[i].plot(rang, rang-5,c='r',linewidth=3)
-            else:
-                ax3[i].plot(rang,np.mean(np.log10(var_arr[i][gene_filter2]))*np.ones(2),c='r',linewidth=3)
-                
-    gene_names_filt = gene_names[gene_filter2]
-    vlm_gene_filter =  np.asarray([True if x in gene_names_filt else False for x in vlm.ra['Gene']],dtype=bool)
-    vlm.filter_genes(by_custom_array=vlm_gene_filter)
-    print(str(len(vlm.ra['Gene']))+' genes retained in loom structure based on filter.')
-    
-    random.seed(a=seed)
-
-    sample_domain = np.arange(len(vlm.ra['Gene']))
-    
-    if len(results_to_exclude)>0:
-        GN=[]
-        for i_ in range(len(results_to_exclude)):
-            with open(results_to_exclude[i_],'rb') as hf:
-                SO = pickle.load(hf)
-                GN.extend(SO.gene_names)
-        print(str(len(GN))+' genes previously run...')
-        GN = set(GN)
-        print(str(len(GN))+' genes were unique.')
-        sample_domain = [i_ for i_ in sample_domain if vlm.ra['Gene'][i_] not in GN]
-
-    if n_gen < len(sample_domain):
-        gene_select = np.random.choice(sample_domain,n_gen,replace=False)
-        print(str(n_gen)+' genes selected in current dataset.')
-    else:
-        gene_select = sample_domain
-        query_gen = n_gen
-        n_gen = len(sample_domain)
-        print(str(n_gen)+' genes selected in current dataset: cannot satisfy query of '+str(query_gen)+' genes.')
-
-    
-    
-    if viz:
-        var_name = ('S','U')
-        sz=(12,4)
-        fig4, ax4 = plt.subplots(nrows=1,ncols=2,figsize=sz)
-        for i in range(2):
-            ax4[i].scatter(np.log10(len_arr[gene_filter2]), 
-                           np.log10(np.mean(getattr(vlm,var_name[i]),1)),s=ptsz,c='k',alpha=alf)
-
-            ax4[i].scatter(np.log10(np.asarray([feat_dict[i_] for i_ in vlm.ra['Gene'][gene_select]])), 
-                           np.log10(np.mean(getattr(vlm,var_name[i]),1)[gene_select]),s=10,c='b',alpha=1)
-            ax4[i].set_xlabel('log10 gene length')
-            ax4[i].set_ylabel('log10 (mean '+var_name[i]+')')
-
+    gene_select = gene_set_ind
     M = np.asarray([int(np.amax(vlm.U[gene_index])+2) for gene_index in gene_select])
     N = np.asarray([int(np.amax(vlm.S[gene_index])+2) for gene_index in gene_select])
 
@@ -415,9 +489,8 @@ def get_gene_data(loom_filepath,feat_dict,viz=False,results_to_exclude=[],seed=6
     search_data = SearchData()
     search_data.set_gene_data(M,N,hist,moment_data,gene_log_lengths,n_gen,gene_names,Ncells,raw_U,raw_S)
     
-    if len(results_to_exclude)>0 and np.any([True if gen in GN else False for gen in gene_names]):
-        raise NameError('Duplication of genes!')
     return search_data
+
     
 def dump_results(file_string):
     divg = []
