@@ -388,24 +388,26 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False):
 
     vlm = vcy.VelocytoLoom(loom_filepath)
     gene_names_vlm = vlm.ra['Gene']
-    print(type(gene_names_vlm))
+    n_gen_tot = len(gene_names_vlm)
     #check which genes I have length data for
     sel_ind_annot = [k for k in range(len(gene_names_vlm)) if gene_names_vlm[k] in feat_dict]
     
     NAMES = [gene_names_vlm[k] for k in range(len(sel_ind_annot))]
     COUNTS = collections.Counter(NAMES)
     sel_ind = [x for x in sel_ind_annot if COUNTS[gene_names_vlm[x]]==1]
-    n_gen_tot = len(sel_ind)
-
-    print(str(len(gene_names_vlm))+' features observed, '+str(len(sel_ind_annot))+' match genome annotations. '
-        +str(n_gen_tot)+' are unique. '
-        +str(len(vlm.ca[list(vlm.ca.keys())[0]]))+' cells detected.')
-
     Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
 
-    gene_names = list(gene_names_vlm[sel_ind])
-    S_mean = np.mean(vlm.S[sel_ind,:],1)
-    U_mean = np.mean(vlm.U[sel_ind,:],1)
+    print(str(len(gene_names_vlm))+' features observed, '+str(len(sel_ind_annot))+' match genome annotations. '
+        +str(len(sel_ind))+' are unique. '
+        +str(Ncells)+' cells detected.')
+
+
+    sel_ind_bool_filter = np.zeros(n_gen_tot,dtype=bool)
+    sel_ind_bool_filter[sel_ind] = True
+    vlm.filter_genes(by_custom_array=sel_ind_bool_filter)
+    gene_names = list(vlm.ra['Gene'])
+    S_mean = np.mean(vlm.S,1)
+    U_mean = np.mean(vlm.U,1)
     
     #aesthetics
     sz=(12,4)
