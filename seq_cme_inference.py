@@ -20,6 +20,8 @@ import random
 import sklearn
 from sklearn.cluster import KMeans
 import collections
+import warnings
+	
 
 ########################
 ## Statistical testing
@@ -262,6 +264,7 @@ def get_transcriptome(transcriptome_filepath,repeat_thr=15):
             repeat_dict[d[0]] =  int(d[thr_ind])
             len_dict[d[0]] =  int(d[1])
     return (len_dict,repeat_dict)
+    
 def select_gene_set(loom_filepaths,feat_dict,viz=False,
                           results_to_exclude=[],seed=6,n_gen=10,
                           filt_param=(0.01,0.01,350,350,4,4)):
@@ -379,7 +382,7 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
     gene_select=list(gene_select)
     trunc_gene_set = list(trunc_gene_set)
     return gene_select, trunc_gene_set
-    
+
 def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False):
     n_gen = len(gene_set)
 
