@@ -238,7 +238,8 @@ def create_dir(search_data,dataset_dir,ID,DATESTRING=date.today().strftime("%y%m
     search_data.set_file_string(file_string)
     try: 
         os.mkdir(file_string) 
-        pickle.dump(search_data,open(file_string+'/metadata.pickle','wb'))
+        with open(file_string+'/metadata.pickle','wb') as hf:
+        	pickle.dump(search_data,hf)
     
         print('Directory ' + file_string+ ' created; metadata written.')
     except OSError as error: 
@@ -526,9 +527,11 @@ def nonvec_driver(search_data,i):
     SAMP_ = search_data.sampl_vals[i]
     ZZ = kl_obj(search_data,SAMP_)
     
-    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],SAMP_,ZZ[4],
-        ('Obj func total','Runtime','Best transcriptional parameters','Obj func separate','Sample value','Init and final time')), 
-        open(search_data.file_string+'/grid_point_'+str(i)+'.pickle','wb'))
+
+    with open(search_data.file_string+'/grid_point_'+str(i)+'.pickle','wb') as hf:
+	    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],SAMP_,ZZ[4],
+	        ('Obj func total','Runtime','Best transcriptional parameters','Obj func separate','Sample value','Init and final time')), 
+	        hf)
 
 def kl_obj(search_data,log_samp_fit_params):
     time_in = time.time()
