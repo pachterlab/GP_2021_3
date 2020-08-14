@@ -229,6 +229,43 @@ def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True):
 
     fig1.tight_layout(pad=0.02)
 
+def chisq_best_param_correction(result_data,method='nearest',Niter_=10,viz=True,szfig=(2,5),figsize=(10,3)):
+    if viz:
+	    fig1,ax1=plt.subplots(nrows=szfig[0],ncols=szfig[1],figsize=figsize)
+
+    divg_orig = result_data.divg
+    best_params = np.zeros((Niter_,2))
+	for i_ in range(Niter_):
+	    (chisq,pval) = chisq_gen(result_data)
+	    result_data.divg = np.sum(result_data.gene_spec_err[:,~result_data.gene_rej],1)
+	    result_data.find_best_params()
+
+	    best_params[i_,:] = result_data.best_samp_params
+
+	    if viz:
+		    axl = np.unravel_index(i_,szfig)
+		    sz = (result_data.n_pt2,result_data.n_pt1)
+		    X = np.reshape(result_data.X.T,sz)
+		    Y = np.reshape(result_data.Y.T,sz)
+		    Z = np.log10(np.reshape(result_data.divg.T,sz))
+		    ax1[axl].contourf(X,Y,Z,40)
+		    ax1[axl].scatter(result_data.best_samp_params[0],result_data.best_samp_params[1],s=10,c='r')
+
+		    ax1[axl].set_xticks([])
+		    ax1[axl].set_yticks([])
+	
+    #return everything to original values
+	result_data.divg = divg_orig
+	result_data.find_best_params()
+	(chisq,pval) = chisq_gen(result_data)
+
+	best_param_est = np.mean(best_params,0)
+	if method == 'nearest':
+		return result_data.sampl_vals[np.argmin(np.sum((np.array(result_data.sampl_vals)-best_param_est)**2,1))]
+	if method == 'raw':
+		return best_param_est
+
+
 ########################
 ## Initialization
 ########################
