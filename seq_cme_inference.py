@@ -592,7 +592,7 @@ def kl_obj(search_data,log_samp_fit_params):
     errors = [results[i_][0] for i_ in gene_itr]
     x_arr = [results[i_][1] for i_ in gene_itr]
     obj_func =  sum(errors)
-    print(np.str(np.round(log_samp_fit_params,2))+'\t'+str(np.round(obj_func,2)))
+    # print(np.str(np.round(log_samp_fit_params,2))+'\t'+str(np.round(obj_func,2)))
     
     time_out = time.time()
     d_time = time_out-time_in
