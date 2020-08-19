@@ -862,7 +862,7 @@ class SearchData:
         self.T_ = T_
         self.gene_params = gene_params
         self.gene_spec_err = gene_spec_err
-    def set_nosampresults(self,gene_params,gene_spec_err):
+    def set_nosamp_results(self,gene_params,gene_spec_err):
         self.nosamp_gene_params = nosamp_gene_params
         self.nosamp_gene_spec_err = nosamp_gene_spec_err
 
