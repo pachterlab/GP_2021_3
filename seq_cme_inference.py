@@ -26,13 +26,18 @@ import warnings
 ########################
 ## Statistical testing
 ########################
-def chisq_gen(result_data,viz=False):
+def chisq_gen(result_data,viz=False,nosamp=False):
     NGEN_TESTED = result_data.n_gen
     import scipy.stats.mstats
-    expected_freq = [cme_integrator_samp(
-                np.insert(10**result_data.best_phys_params[i_],0,1), 
-                10**result_data.gene_spec_samp_params[i_], 
-                result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
+    if not nosamp:
+	    expected_freq = [cme_integrator_samp(
+	                np.insert(10**result_data.best_phys_params[i_],0,1), 
+	                10**result_data.gene_spec_samp_params[i_], 
+	                result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
+	else:
+		expected_freq = [cme_integrator_nosamp(
+	                np.insert(10**result_data.nosamp_gene_params[i_],0,1), 
+	                result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
     for i_ in range(NGEN_TESTED):
         temp = expected_freq[i_]
         EPS=1e-12
@@ -142,45 +147,68 @@ def resample_opt_mc_viz(RES,resamp_vec=(1,2,3,4),Ntries=1000,figsize=(8,2),log=T
         ax1[samp_num].set_yticks([])
         ax1[samp_num].set_title('Ngen = '+str(resamp_vec[samp_num]))
 
-def plot_param_marg(result_data,nbin=15):
+def plot_param_marg(result_data,nbin=15,nosamp=False):
     from scipy.stats import norm
 
     fig1,ax1=plt.subplots(nrows=1,ncols=3,figsize=(5,2))
 
     param_nm = ('burst size','deg rate','splice rate')
     for i in range(3):
-        ax1[i].hist(result_data.best_phys_params[:,i],nbin,density=True)
+    	if not nosamp:
+    		DATA = result_data.best_phys_params[:,i]
+    		LB = result_data.phys_lb[i]
+    		UB = result_data.phys_ub[i]
+    	else: 
+    		DATA = result_data.nosamp_gene_params
+    		LB = result_data.phys_lb_nosamp[i]
+    		UB = result_data.phys_ub_nosamp[i]
+
+        ax1[i].hist(DATA,nbin,density=True)
     #     print(np.mean(best_phys_params[:,i]))
 
-        mu, std = norm.fit(result_data.best_phys_params[:,i])
+        mu, std = norm.fit(DATA)
         
         xmin, xmax = ax1[i].get_xlim()
         x = np.linspace(xmin, xmax, 100)
         p = norm.pdf(x, mu, std)
         ax1[i].plot(x, p, 'k', linewidth=2)
         
-        ax1[i].set_xlim([result_data.phys_lb[i],result_data.phys_ub[i]])
+        ax1[i].set_xlim([LB,UB])
         ax1[i].set_title(param_nm[i])
         ax1[i].set_xlabel('log10 value')
     fig1.tight_layout()
 
-def plot_param_L_dep(result_data):
+def plot_param_L_dep(result_data,nosamp=False):
     fig1,ax1=plt.subplots(nrows=1,ncols=3,figsize=(5,2))
 
     name_var = ('log b','log gamma','log beta')
     for i in range(3):
-        ax1[i].scatter(result_data.gene_log_lengths,result_data.best_phys_params[:,i],c='k',s=1,alpha=0.5)
+    	if not nosamp:
+    		DATA = result_data.best_phys_params[:,i]
+    		LB = result_data.phys_lb[i]
+    		UB = result_data.phys_ub[i]
+    	else: 
+    		DATA = result_data.nosamp_gene_params
+    		LB = result_data.phys_lb_nosamp[i]
+    		UB = result_data.phys_ub_nosamp[i]
+
+        ax1[i].scatter(result_data.gene_log_lengths,DATA,c='k',s=1,alpha=0.5)
         ax1[i].set_xlabel('log L')
         ax1[i].set_ylabel(name_var[i])
-        ax1[i].set_ylim([result_data.phys_lb[i],result_data.phys_ub[i]])
+        ax1[i].set_ylim([LB,UB])
     fig1.tight_layout()
 
-def plot_KL(result_data,nbins=15,marg='none'):
-    plt.hist(result_data.gene_spec_err[result_data.best_ind],nbins)
+def plot_KL(result_data,nbins=15,nosamp=False):
+    if not nosamp:
+    	DATA = result_data.gene_spec_err[result_data.best_ind]
+    else:
+    	DATA = result_data.nosamp_gene_spec_err
+    plt.hist(DATA,nbins)
+
     plt.xlabel('KL divergence')
     plt.ylabel('# genes')
 
-def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True):
+def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True,nosamp=False):
     (nrows,ncols)=sz
     fig1,ax1=plt.subplots(nrows=nrows,ncols=ncols,figsize=figsize)
     
@@ -188,9 +216,13 @@ def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True):
     for i_ in range(NGEN_PLOT):
         axis_location = np.unravel_index(i_,sz)
         
-        Pa = cme_integrator_samp(numpy.insert(10**result_data.best_phys_params[i_],0,1),
-                                10**result_data.gene_spec_samp_params[i_],
-                                 result_data.M[i_],result_data.N[i_],np.inf,marg)
+        if not nosamp:
+	        Pa = cme_integrator_samp(numpy.insert(10**result_data.best_phys_params[i_],0,1),
+	                                10**result_data.gene_spec_samp_params[i_],
+	                                 result_data.M[i_],result_data.N[i_],np.inf,marg)
+	    else:
+	    	Pa = cme_integrator_nosamp(numpy.insert(10**result_data.nosamp_gene_params[i_],0,1),
+	                                 result_data.M[i_],result_data.N[i_],np.inf,marg)
         if log and marg == 'none':
         	Pa[Pa<1e-8]=1e-8
         	Pa = np.log10(Pa)
