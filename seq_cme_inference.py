@@ -711,7 +711,7 @@ def nosamp_driver(search_data):
     
 
     with open(search_data.file_string+'/nosamp'+'.pickle','wb') as hf:
-	    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],(np.nan,np_nan),ZZ[4],
+	    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],(np.nan,np.nan),ZZ[4],
 	        ('Obj func total','Runtime','Best transcriptional parameters','Obj func separate','Sample value','Init and final time')), 
 	        hf)
 
