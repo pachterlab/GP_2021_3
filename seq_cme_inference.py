@@ -846,9 +846,10 @@ class SearchData:
         if phys_ub_nosamp is None:
         	phys_ub_nosamp = phys_ub
         if interior_search_restarts_nosamp is None:
-        	interior_search_restarts = interior_search_restarts
+        	interior_search_restarts_nosamp = interior_search_restarts
         self.phys_lb_nosamp = phys_lb_nosamp
         self.phys_ub_nosamp = phys_ub_nosamp
+        self.interior_search_restarts_nosamp = interior_search_restarts_nosamp
 
     def set_scan_grid(self,n_pt1,n_pt2,samp_lb,samp_ub):
         self.n_pt1 = n_pt1
