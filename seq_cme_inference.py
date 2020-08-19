@@ -708,7 +708,6 @@ def INTFUNC_(x,params,U,V):
 
 def nosamp_driver(search_data):
     ZZ = kl_obj_nosamp(search_data)
-    
 
     with open(search_data.file_string+'/nosamp'+'.pickle','wb') as hf:
 	    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],(np.nan,np.nan),ZZ[4],
@@ -720,9 +719,14 @@ def kl_obj_nosamp(search_data):
 
     gene_itr = range(search_data.n_gen)
 
-    interior_params = (search_data.interior_search_restarts,
-                       search_data.phys_lb,search_data.phys_ub,
-                       search_data.interior_maxiter,search_data.init_pattern)
+    if hasattr(phys_lb_nosamp):
+    	interior_params = (search_data.interior_search_restarts,
+	                       search_data.phys_lb_nosamp,search_data.phys_ub_nosamp,
+	                       search_data.interior_maxiter,search_data.init_pattern)
+    else:
+	    interior_params = (search_data.interior_search_restarts,
+	                       search_data.phys_lb,search_data.phys_ub,
+	                       search_data.interior_maxiter,search_data.init_pattern)
 
     param_list = [([], search_data.hist[i_], 
                    search_data.M[i_], search_data.N[i_], 
@@ -837,12 +841,19 @@ class SearchData:
         self.Ncells = Ncells
         self.raw_U = raw_U
         self.raw_S = raw_S
-    def set_interior_search_params(self,interior_search_restarts,phys_lb,phys_ub,interior_maxiter,init_pattern ='moments'):
+    def set_interior_search_params(self,interior_search_restarts,phys_lb,phys_ub,interior_maxiter,init_pattern ='moments',phys_lb_nosamp=None,phys_ub_nosamp=None):
         self.interior_search_restarts = interior_search_restarts
         self.phys_lb = phys_lb
         self.phys_ub = phys_ub
         self.interior_maxiter = interior_maxiter
         self.init_pattern = init_pattern
+        if phys_lb_nosamp is None:
+        	phys_lb_nosamp = phys_lb
+        if phys_ub_nosamp is None:
+        	phys_ub_nosamp = phys_ub
+        self.phys_lb_nosamp = phys_lb_nosamp
+        self.phys_ub_nosamp = phys_ub_nosamp
+        
     def set_scan_grid(self,n_pt1,n_pt2,samp_lb,samp_ub):
         self.n_pt1 = n_pt1
         self.n_pt2 = n_pt2
@@ -882,6 +893,9 @@ class ResultData:
                  'phys_ub','phys_lb','Ncells')
         for attr in attrs:
             setattr(self,attr,getattr(search_results,attr))
+        if hasattr(search_results,'phys_ub_nosamp'):
+            setattr(self,'phys_ub_nosamp',getattr(search_results,'phys_ub_nosamp'))
+            setattr(self,'phys_lb_nosamp',getattr(search_results,'phys_lb_nosamp'))
         self.divg = np.zeros(self.N_pts)
         self.gene_params = np.zeros((self.N_pts,0,3))
         self.gene_spec_err = np.zeros((self.N_pts,0))
@@ -911,7 +925,6 @@ class ResultData:
         if hasattr(search_results,'nosamp_gene_params'):
         	self.nosamp_gene_params = np.concatenate((self.nosamp_gene_params,search_results.nosamp_gene_params),axis=0)
         	self.nosamp_gene_spec_err = np.concatenate((self.nosamp_gene_spec_err,search_results.nosamp_gene_spec_err),axis=0)
-
 
     def find_best_params(self):
         self.best_ind = np.argmin(self.divg)
