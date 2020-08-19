@@ -922,7 +922,7 @@ class ResultData:
     def set_parameters(self,search_results):
         attrs = ('n_pt1','n_pt2','N_pts','X','Y','sampl_vals',
                  'interior_search_restarts','interior_maxiter',
-                 'phys_ub','phys_lb','Ncells')
+                 'phys_ub','phys_lb','Ncells','init_pattern')
         for attr in attrs:
             setattr(self,attr,getattr(search_results,attr))
         if hasattr(search_results,'phys_ub_nosamp'):
