@@ -223,14 +223,17 @@ def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True,nosamp=Fa
         else:
             Pa = cme_integrator_nosamp(numpy.insert(10**result_data.nosamp_gene_params[i_],0,1),
                                      result_data.M[i_],result_data.N[i_],np.inf,marg)
+
         if log and marg == 'none':
         	Pa[Pa<1e-8]=1e-8
         	Pa = np.log10(Pa)
         if title:
-	        if hasattr(result_data,'gene_rej') and result_data.gene_rej[i_]:
-	            ax1[axis_location].set_title(result_data.gene_names[i_]+' (rejected)',fontdict={'fontsize': 9})
-	        else:
-	            ax1[axis_location].set_title(result_data.gene_names[i_],fontdict={'fontsize': 9})
+            if hasattr(result_data,'gene_rej') and result_data.gene_rej[i_] and not nonsamp:
+                ax1[axis_location].set_title(result_data.gene_names[i_]+' (rejected)',fontdict={'fontsize': 9})
+            if hasattr(result_data,'gene_rej_nosamp') and result_data.gene_rej_nosamp[i_] and nonsamp:
+                ax1[axis_location].set_title(result_data.gene_names[i_]+' (rejected)',fontdict={'fontsize': 9})
+            else:
+                ax1[axis_location].set_title(result_data.gene_names[i_],fontdict={'fontsize': 9})
         ax1[axis_location].set_xticks([])
         ax1[axis_location].set_yticks([])
         if marg=='none':
