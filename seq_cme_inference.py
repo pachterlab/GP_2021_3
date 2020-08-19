@@ -719,7 +719,7 @@ def kl_obj_nosamp(search_data):
 
     gene_itr = range(search_data.n_gen)
 
-	interior_params = (search_data.interior_search_restarts,
+    interior_params = (search_data.interior_search_restarts,
                        search_data.phys_lb_nosamp,search_data.phys_ub_nosamp,
                        search_data.interior_maxiter,search_data.init_pattern)
     param_list = [([], search_data.hist[i_], 
