@@ -719,15 +719,9 @@ def kl_obj_nosamp(search_data):
 
     gene_itr = range(search_data.n_gen)
 
-    if hasattr(phys_lb_nosamp):
-    	interior_params = (search_data.interior_search_restarts,
-	                       search_data.phys_lb_nosamp,search_data.phys_ub_nosamp,
-	                       search_data.interior_maxiter,search_data.init_pattern)
-    else:
-	    interior_params = (search_data.interior_search_restarts,
-	                       search_data.phys_lb,search_data.phys_ub,
-	                       search_data.interior_maxiter,search_data.init_pattern)
-
+	interior_params = (search_data.interior_search_restarts,
+                       search_data.phys_lb_nosamp,search_data.phys_ub_nosamp,
+                       search_data.interior_maxiter,search_data.init_pattern)
     param_list = [([], search_data.hist[i_], 
                    search_data.M[i_], search_data.N[i_], 
                    interior_params, search_data.moment_data[i_]) for i_ in gene_itr]
@@ -853,7 +847,7 @@ class SearchData:
         	phys_ub_nosamp = phys_ub
         self.phys_lb_nosamp = phys_lb_nosamp
         self.phys_ub_nosamp = phys_ub_nosamp
-        
+
     def set_scan_grid(self,n_pt1,n_pt2,samp_lb,samp_ub):
         self.n_pt1 = n_pt1
         self.n_pt2 = n_pt2
