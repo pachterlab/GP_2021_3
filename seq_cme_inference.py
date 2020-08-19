@@ -48,7 +48,7 @@ def chisq_gen(result_data,viz=False,nosamp=False):
     csq = np.array([csqarr[i_][0] for i_ in range(len(csqarr))])
     pval = np.array([csqarr[i_][1] for i_ in range(len(csqarr))])
 
-    result_data.set_rej(pval)
+    result_data.set_rej(pval,nosamp=nosamp)
 
     if viz:
         plt.hist(csq)
@@ -965,8 +965,11 @@ class ResultData:
         self.gene_spec_samp_params = np.array([(self.gene_log_lengths[i_] + self.best_samp_params[0], 
           self.best_samp_params[1]) for i_ in range(self.n_gen)])
     
-    def set_rej(self,pval,threshold=0.05,bonferroni=True):
+    def set_rej(self,pval,threshold=0.05,bonferroni=True,nosamp=False):
         if bonferroni:
             threshold=threshold/self.n_gen
-        self.gene_rej = pval<threshold
+        if not nosamp:
+            self.gene_rej = pval<threshold
+        else:
+        	self.gene_rej_nosamp = pval<threshold
 
