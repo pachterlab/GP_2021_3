@@ -229,7 +229,7 @@ def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True):
 
     fig1.tight_layout(pad=0.02)
 
-def chisq_best_param_correction(result_data,method='nearest',Niter_=10,viz=True,szfig=(2,5),figsize=(10,3)):
+def chisq_best_param_correction(result_data,method='nearest',Niter_=10,viz=True,szfig=(2,5),figsize=(10,3),overwrite=False):
     if viz:
         fig1,ax1=plt.subplots(nrows=szfig[0],ncols=szfig[1],figsize=figsize)
 
@@ -255,9 +255,10 @@ def chisq_best_param_correction(result_data,method='nearest',Niter_=10,viz=True,
             ax1[axl].set_yticks([])
 
     #return everything to original values
-    result_data.divg = divg_orig
-    result_data.find_best_params()
-    (chisq,pval) = chisq_gen(result_data)
+    if not overwrite:
+	    result_data.divg = divg_orig
+	    result_data.find_best_params()
+	    (chisq,pval) = chisq_gen(result_data)
 
     best_param_est = np.mean(best_params,0)
     if method == 'nearest':
@@ -270,8 +271,8 @@ def chisq_best_param_correction(result_data,method='nearest',Niter_=10,viz=True,
 ## Initialization
 ########################
 
-def create_dir(search_data,dataset_dir,ID,DATESTRING=date.today().strftime("%y%m%d"),code_ver=''):
-    file_string = dataset_dir+'gg_'+DATESTRING+'_BSD_'+str(search_data.n_pt1)+'x'+str(search_data.n_pt2)+'_'+str(search_data.n_gen)+'gen_'+str(ID)
+def create_dir(search_data,dataset_dir,ID,DATESTRING=date.today().strftime("%y%m%d"),code_ver='',model='BSD'):
+    file_string = dataset_dir+'gg_'+DATESTRING+'_'+model+'_'+str(search_data.n_pt1)+'x'+str(search_data.n_pt2)+'_'+str(search_data.n_gen)+'gen_'+str(ID)
     search_data.set_file_string(file_string)
     try: 
         os.mkdir(file_string) 
@@ -533,9 +534,8 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False):
     search_data.set_gene_data(M,N,hist,moment_data,gene_log_lengths,n_gen,gene_names,Ncells,raw_U,raw_S)
     
     return search_data
-
     
-def dump_results(file_string):
+def dump_results(file_string,include_nosamp=False):
     divg = []
     T_ = []
     gene_params = []
@@ -555,6 +555,11 @@ def dump_results(file_string):
     gene_params = np.array(gene_params)
     gene_spec_err = np.array(gene_spec_err)
     SO.set_results(divg,T_,gene_params,gene_spec_err)
+
+    if include_nosamp:
+	    with open(file_string+'/nosamp.pickle','rb') as hf:
+	    	PL = pickle.load(hf)
+	    	SO.set_nosamp_results(PL[2],PL[3])
 
     with open(file_string+'/result.pickle','wb') as hf:
     	pickle.dump(SO, hf)
@@ -582,7 +587,7 @@ def kl_obj(search_data,log_samp_fit_params):
           log_samp_fit_params[1]) for i_ in range(search_data.n_gen)])
     interior_params = (search_data.interior_search_restarts,
                        search_data.phys_lb,search_data.phys_ub,
-                       search_data.interior_maxiter)
+                       search_data.interior_maxiter,search_data.init_pattern)
 
     param_list = [(log_samp_params[i_], search_data.hist[i_], 
                    search_data.M[i_], search_data.N[i_], 
@@ -607,6 +612,7 @@ def gene_specific_optimizer(params,gene_index):
     N = params[3]
     interior_params = params[4]
     GSMD = params[5] #gene specific moment data
+    init_pattern = params[6]
     time_in = time.time()
     num_restarts = interior_params[0]
     lb_log = interior_params[1]
@@ -623,7 +629,8 @@ def gene_specific_optimizer(params,gene_index):
     gamma_fit = np.clip(b_fit * samp_params[1] / GSMD[2], lb[1], ub[1])
     beta_fit = np.clip(b_fit * samp_params[0] / GSMD[1], lb[2], ub[2])
     x0 = np.log10(np.asarray([b_fit, gamma_fit, beta_fit]))
-#     x0 = np.random.rand(3)*(ub_log-lb_log)+lb_log
+    if init_pattern == 'random'
+    	x0 = np.random.rand(3)*(ub_log-lb_log)+lb_log
     
     res_arr = scipy.optimize.minimize(lambda x: kl_div(
         gene_specific_data,
@@ -696,6 +703,125 @@ def INTFUNC_(x,params,U,V):
     return Ufun/(1-Ufun)
 
 ########################
+## Non-sampling optimizer
+########################
+
+def nosamp_driver(search_data):
+    SAMP_ = search_data.sampl_vals[i]
+    ZZ = kl_obj_nosamp(search_data,SAMP_)
+    
+
+    with open(search_data.file_string+'/nosamp'+'.pickle','wb') as hf:
+	    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],(np.nan,np_nan),ZZ[4],
+	        ('Obj func total','Runtime','Best transcriptional parameters','Obj func separate','Sample value','Init and final time')), 
+	        hf)
+
+def kl_obj_nosamp(search_data):
+    time_in = time.time()
+
+    gene_itr = range(search_data.n_gen)
+
+    interior_params = (search_data.interior_search_restarts,
+                       search_data.phys_lb,search_data.phys_ub,
+                       search_data.interior_maxiter,search_data.init_pattern)
+
+    param_list = [([], search_data.hist[i_], 
+                   search_data.M[i_], search_data.N[i_], 
+                   interior_params, search_data.moment_data[i_]) for i_ in gene_itr]
+
+    results = [gene_specific_optimizer_nosamp(param_list[i_],i_) for i_ in gene_itr]
+    errors = [results[i_][0] for i_ in gene_itr]
+    x_arr = [results[i_][1] for i_ in gene_itr]
+    obj_func =  sum(errors)
+    # print(np.str(np.round(log_samp_fit_params,2))+'\t'+str(np.round(obj_func,2)))
+    
+    time_out = time.time()
+    d_time = time_out-time_in
+    
+    return (obj_func,d_time,x_arr,errors,(time_in,time_out))
+
+def gene_specific_optimizer_nosamp(params,gene_index):
+#     print('gene optimizer, no sampling')
+    gene_specific_data = params[1]
+    M = params[2]
+    N = params[3]
+    interior_params = params[4]
+    GSMD = params[5] #gene specific moment data
+    init_pattern = params[6]
+    time_in = time.time()
+    num_restarts = interior_params[0]
+    lb_log = interior_params[1]
+    ub_log = interior_params[2]
+    maxiter = interior_params[3]
+    
+    lb = 10**lb_log
+    ub = 10**ub_log
+    
+    bnd = scipy.optimize.Bounds(lb_log,ub_log)
+    
+    #u var, u mean, s mean
+    b_fit = np.clip(GSMD[0] / GSMD[1] - 1, lb[0], ub[0])
+    gamma_fit = np.clip(b_fit / GSMD[2], lb[1], ub[1])
+    beta_fit = np.clip(b_fit  GSMD[1], lb[2], ub[2])
+    x0 = np.log10(np.asarray([b_fit, gamma_fit, beta_fit]))
+    if init_pattern == 'random'
+    	x0 = np.random.rand(3)*(ub_log-lb_log)+lb_log
+    
+    res_arr = scipy.optimize.minimize(lambda x: kl_div(
+        gene_specific_data,
+        cme_integrator_samp(np.insert(10**x,0,1), samp_params, M,N,np.inf,'none')),
+                                            x0=x0, bounds=bnd,
+                                      options={'maxiter':maxiter,'disp':False})
+    x = res_arr.x
+    err = res_arr.fun
+    err_orig = err
+    
+    ERR_THRESH = 0.99
+    
+    for rest_ind in range(num_restarts-1):
+        x0_rand = np.random.rand(3)*(ub_log-lb_log)+lb_log
+        res_arr = scipy.optimize.minimize(lambda x: kl_div(
+            gene_specific_data,
+            cme_integrator_nosamp(np.insert(10**x,0,1), M,N,np.inf,'none')),
+                                                x0=x0_rand, bounds=bnd,
+                                          options={'maxiter':maxiter,'disp':False})
+        if res_arr.fun < err*ERR_THRESH:
+            x = res_arr.x
+            err = res_arr.fun
+    return (err,x)
+
+def cme_integrator_nosamp(phys,M,N,t,marg):
+    if marg=='mature':
+        M=1
+    elif marg=='nascent':
+        N=1
+    NN = N
+    N = 1+int(np.ceil((NN-1)/2))
+    l=np.arange(M)
+    k=np.arange(N)
+    u_ = np.exp(-2j*np.pi*l/M)-1
+    v_ = np.exp(-2j*np.pi*k/NN)-1
+    u,v=np.meshgrid(u_,v_)
+    u=u.flatten()
+    v=v.flatten()
+    
+    fun = lambda x: INTFUNC_(x,phys[1:],u,v)
+
+    T_ = time.time()
+    INT = scipy.integrate.quad_vec(fun,0,t,epsabs=1e-20,epsrel=1e-5,full_output=True)
+    T__ = time.time()-T_
+    I2 = INT[0]
+    
+    I = np.exp(I2*phys[0])
+    I = np.reshape(I.T,(N,M))
+    
+    N_fin = N+1 if np.mod(NN-1,2)==0 else -1
+    I=np.vstack((I,np.hstack((np.reshape(
+        np.flipud(I[1:N_fin,0].conj()),(N_fin-2,1)),np.flip(I[1:N_fin,1:].conj(),(0,1))))))
+    return np.real(np.fft.ifft2(I)).T 
+
+
+########################
 ## Class definitions
 ########################
 class SearchData:
@@ -712,11 +838,12 @@ class SearchData:
         self.Ncells = Ncells
         self.raw_U = raw_U
         self.raw_S = raw_S
-    def set_interior_search_params(self,interior_search_restarts,phys_lb,phys_ub,interior_maxiter):
+    def set_interior_search_params(self,interior_search_restarts,phys_lb,phys_ub,interior_maxiter,init_pattern ='moments'):
         self.interior_search_restarts = interior_search_restarts
         self.phys_lb = phys_lb
         self.phys_ub = phys_ub
         self.interior_maxiter = interior_maxiter
+        self.init_pattern = init_pattern
     def set_scan_grid(self,n_pt1,n_pt2,samp_lb,samp_ub):
         self.n_pt1 = n_pt1
         self.n_pt2 = n_pt2
@@ -736,6 +863,9 @@ class SearchData:
         self.T_ = T_
         self.gene_params = gene_params
         self.gene_spec_err = gene_spec_err
+    def set_nosampresults(self,gene_params,gene_spec_err):
+        self.nosamp_gene_params = nosamp_gene_params
+        self.nosamp_gene_spec_err = nosamp_gene_spec_err
 
 class ResultData:
     def __init__(self):
