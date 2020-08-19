@@ -889,6 +889,10 @@ class ResultData:
         self.raw_S = np.zeros((0,self.Ncells),dtype=int)
         self.T_ = np.zeros((self.N_pts,0))
 
+        if hasattr(search_results,'nosamp_gene_params'):
+        	self.nosamp_gene_params = np.zeros((0,3))
+        	self.nosamp_gene_spec_err = np.zeros(0)
+
     def set_variables(self,search_results):
         self.divg += search_results.divg
         self.gene_params = np.concatenate((self.gene_params,search_results.gene_params),axis=1)
@@ -903,6 +907,11 @@ class ResultData:
         self.gene_names.extend(search_results.gene_names)
         self.hist.extend(search_results.hist)
         self.n_gen += search_results.n_gen
+
+        if hasattr(search_results,'nosamp_gene_params'):
+        	self.nosamp_gene_params = np.concatenate((self.nosamp_gene_params,search_results.nosamp_gene_params),axis=0)
+        	self.nosamp_gene_spec_err = np.concatenate((self.nosamp_gene_spec_err,search_results.nosamp_gene_spec_err),axis=0)
+
 
     def find_best_params(self):
         self.best_ind = np.argmin(self.divg)
