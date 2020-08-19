@@ -762,7 +762,7 @@ def gene_specific_optimizer_nosamp(params,gene_index):
     #u var, u mean, s mean
     b_fit = np.clip(GSMD[0] / GSMD[1] - 1, lb[0], ub[0])
     gamma_fit = np.clip(b_fit / GSMD[2], lb[1], ub[1])
-    beta_fit = np.clip(b_fit  GSMD[1], lb[2], ub[2])
+    beta_fit = np.clip(b_fit / GSMD[1], lb[2], ub[2])
     x0 = np.log10(np.asarray([b_fit, gamma_fit, beta_fit]))
     if init_pattern == 'random':
     	x0 = np.random.rand(3)*(ub_log-lb_log)+lb_log
