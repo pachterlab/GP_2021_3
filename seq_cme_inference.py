@@ -629,7 +629,7 @@ def gene_specific_optimizer(params,gene_index):
     gamma_fit = np.clip(b_fit * samp_params[1] / GSMD[2], lb[1], ub[1])
     beta_fit = np.clip(b_fit * samp_params[0] / GSMD[1], lb[2], ub[2])
     x0 = np.log10(np.asarray([b_fit, gamma_fit, beta_fit]))
-    if init_pattern == 'random'
+    if init_pattern == 'random':
     	x0 = np.random.rand(3)*(ub_log-lb_log)+lb_log
     
     res_arr = scipy.optimize.minimize(lambda x: kl_div(
@@ -764,7 +764,7 @@ def gene_specific_optimizer_nosamp(params,gene_index):
     gamma_fit = np.clip(b_fit / GSMD[2], lb[1], ub[1])
     beta_fit = np.clip(b_fit  GSMD[1], lb[2], ub[2])
     x0 = np.log10(np.asarray([b_fit, gamma_fit, beta_fit]))
-    if init_pattern == 'random'
+    if init_pattern == 'random':
     	x0 = np.random.rand(3)*(ub_log-lb_log)+lb_log
     
     res_arr = scipy.optimize.minimize(lambda x: kl_div(
