@@ -159,7 +159,7 @@ def plot_param_marg(result_data,nbin=15,nosamp=False):
             LB = result_data.phys_lb[i]
             UB = result_data.phys_ub[i]
         else: 
-            DATA = result_data.nosamp_gene_params
+            DATA = result_data.nosamp_gene_params[:,i]
             LB = result_data.phys_lb_nosamp[i]
             UB = result_data.phys_ub_nosamp[i]
 
@@ -188,7 +188,7 @@ def plot_param_L_dep(result_data,nosamp=False):
             LB = result_data.phys_lb[i]
             UB = result_data.phys_ub[i]
         else: 
-            DATA = result_data.nosamp_gene_params
+            DATA = result_data.nosamp_gene_params[:,i]
             LB = result_data.phys_lb_nosamp[i]
             UB = result_data.phys_ub_nosamp[i]
 
