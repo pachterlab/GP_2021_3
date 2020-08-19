@@ -768,7 +768,7 @@ def gene_specific_optimizer_nosamp(params,gene_index):
     
     res_arr = scipy.optimize.minimize(lambda x: kl_div(
         gene_specific_data,
-        cme_integrator_nosamp(np.insert(10**x,0,1), samp_params, M,N,np.inf,'none')),
+        cme_integrator_nosamp(np.insert(10**x,0,1), M,N,np.inf,'none')),
                                             x0=x0, bounds=bnd,
                                       options={'maxiter':maxiter,'disp':False})
     x = res_arr.x
