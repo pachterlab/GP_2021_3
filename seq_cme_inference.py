@@ -731,7 +731,7 @@ def kl_div(data, proposal):
 def INTFUNC_(x,params,U,V):
     f = params[2]/(params[2]-params[1])
     Ufun = f*V*np.exp(-params[1]*x) + (U-V*f)*np.exp(-params[2]*x)
-    filt = np.isnan(f)
+    filt = ~np.isfinite(f)
     if np.any(filt): #params[1] = params[2]
     	Ufun[filt] = np.exp(-params[1]*x)*(U[filt] + params[1]*V[filt]*x)
     Ufun = params[0]*Ufun
