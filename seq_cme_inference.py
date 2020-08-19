@@ -30,14 +30,14 @@ def chisq_gen(result_data,viz=False,nosamp=False):
     NGEN_TESTED = result_data.n_gen
     import scipy.stats.mstats
     if not nosamp:
-	    expected_freq = [cme_integrator_samp(
-	                np.insert(10**result_data.best_phys_params[i_],0,1), 
-	                10**result_data.gene_spec_samp_params[i_], 
-	                result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
-	else:
-		expected_freq = [cme_integrator_nosamp(
-	                np.insert(10**result_data.nosamp_gene_params[i_],0,1), 
-	                result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
+        expected_freq = [cme_integrator_samp(
+                    np.insert(10**result_data.best_phys_params[i_],0,1), 
+                    10**result_data.gene_spec_samp_params[i_], 
+                    result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
+    else:
+        expected_freq = [cme_integrator_nosamp(
+                    np.insert(10**result_data.nosamp_gene_params[i_],0,1), 
+                    result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
     for i_ in range(NGEN_TESTED):
         temp = expected_freq[i_]
         EPS=1e-12
@@ -154,14 +154,14 @@ def plot_param_marg(result_data,nbin=15,nosamp=False):
 
     param_nm = ('burst size','deg rate','splice rate')
     for i in range(3):
-    	if not nosamp:
-    		DATA = result_data.best_phys_params[:,i]
-    		LB = result_data.phys_lb[i]
-    		UB = result_data.phys_ub[i]
-    	else: 
-    		DATA = result_data.nosamp_gene_params
-    		LB = result_data.phys_lb_nosamp[i]
-    		UB = result_data.phys_ub_nosamp[i]
+        if not nosamp:
+            DATA = result_data.best_phys_params[:,i]
+            LB = result_data.phys_lb[i]
+            UB = result_data.phys_ub[i]
+        else: 
+            DATA = result_data.nosamp_gene_params
+            LB = result_data.phys_lb_nosamp[i]
+            UB = result_data.phys_ub_nosamp[i]
 
         ax1[i].hist(DATA,nbin,density=True)
     #     print(np.mean(best_phys_params[:,i]))
@@ -183,14 +183,14 @@ def plot_param_L_dep(result_data,nosamp=False):
 
     name_var = ('log b','log gamma','log beta')
     for i in range(3):
-    	if not nosamp:
-    		DATA = result_data.best_phys_params[:,i]
-    		LB = result_data.phys_lb[i]
-    		UB = result_data.phys_ub[i]
-    	else: 
-    		DATA = result_data.nosamp_gene_params
-    		LB = result_data.phys_lb_nosamp[i]
-    		UB = result_data.phys_ub_nosamp[i]
+        if not nosamp:
+            DATA = result_data.best_phys_params[:,i]
+            LB = result_data.phys_lb[i]
+            UB = result_data.phys_ub[i]
+        else: 
+            DATA = result_data.nosamp_gene_params
+            LB = result_data.phys_lb_nosamp[i]
+            UB = result_data.phys_ub_nosamp[i]
 
         ax1[i].scatter(result_data.gene_log_lengths,DATA,c='k',s=1,alpha=0.5)
         ax1[i].set_xlabel('log L')
@@ -217,12 +217,12 @@ def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True,nosamp=Fa
         axis_location = np.unravel_index(i_,sz)
         
         if not nosamp:
-	        Pa = cme_integrator_samp(numpy.insert(10**result_data.best_phys_params[i_],0,1),
-	                                10**result_data.gene_spec_samp_params[i_],
-	                                 result_data.M[i_],result_data.N[i_],np.inf,marg)
-	    else:
-	    	Pa = cme_integrator_nosamp(numpy.insert(10**result_data.nosamp_gene_params[i_],0,1),
-	                                 result_data.M[i_],result_data.N[i_],np.inf,marg)
+            Pa = cme_integrator_samp(numpy.insert(10**result_data.best_phys_params[i_],0,1),
+                                    10**result_data.gene_spec_samp_params[i_],
+                                     result_data.M[i_],result_data.N[i_],np.inf,marg)
+        else:
+            Pa = cme_integrator_nosamp(numpy.insert(10**result_data.nosamp_gene_params[i_],0,1),
+                                     result_data.M[i_],result_data.N[i_],np.inf,marg)
         if log and marg == 'none':
         	Pa[Pa<1e-8]=1e-8
         	Pa = np.log10(Pa)
