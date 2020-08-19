@@ -707,8 +707,7 @@ def INTFUNC_(x,params,U,V):
 ########################
 
 def nosamp_driver(search_data):
-    SAMP_ = search_data.sampl_vals[i]
-    ZZ = kl_obj_nosamp(search_data,SAMP_)
+    ZZ = kl_obj_nosamp(search_data)
     
 
     with open(search_data.file_string+'/nosamp'+'.pickle','wb') as hf:
