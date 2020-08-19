@@ -612,12 +612,12 @@ def gene_specific_optimizer(params,gene_index):
     N = params[3]
     interior_params = params[4]
     GSMD = params[5] #gene specific moment data
-    init_pattern = params[6]
     time_in = time.time()
     num_restarts = interior_params[0]
     lb_log = interior_params[1]
     ub_log = interior_params[2]
     maxiter = interior_params[3]
+    init_pattern = interior_params[4]
     
     lb = 10**lb_log
     ub = 10**ub_log
@@ -746,12 +746,12 @@ def gene_specific_optimizer_nosamp(params,gene_index):
     N = params[3]
     interior_params = params[4]
     GSMD = params[5] #gene specific moment data
-    init_pattern = params[6]
     time_in = time.time()
     num_restarts = interior_params[0]
     lb_log = interior_params[1]
     ub_log = interior_params[2]
     maxiter = interior_params[3]
+    init_pattern = interior_params[4]
     
     lb = 10**lb_log
     ub = 10**ub_log
