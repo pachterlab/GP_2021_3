@@ -719,7 +719,7 @@ def kl_obj_nosamp(search_data):
 
     gene_itr = range(search_data.n_gen)
 
-    interior_params = (search_data.interior_search_restarts,
+    interior_params = (search_data.interior_search_restarts_nosamp,
                        search_data.phys_lb_nosamp,search_data.phys_ub_nosamp,
                        search_data.interior_maxiter,search_data.init_pattern)
     param_list = [([], search_data.hist[i_], 
@@ -835,7 +835,7 @@ class SearchData:
         self.Ncells = Ncells
         self.raw_U = raw_U
         self.raw_S = raw_S
-    def set_interior_search_params(self,interior_search_restarts,phys_lb,phys_ub,interior_maxiter,init_pattern ='moments',phys_lb_nosamp=None,phys_ub_nosamp=None):
+    def set_interior_search_params(self,interior_search_restarts,phys_lb,phys_ub,interior_maxiter,init_pattern ='moments',phys_lb_nosamp=None,phys_ub_nosamp=None,interior_search_restarts_nosamp=None):
         self.interior_search_restarts = interior_search_restarts
         self.phys_lb = phys_lb
         self.phys_ub = phys_ub
@@ -845,6 +845,8 @@ class SearchData:
         	phys_lb_nosamp = phys_lb
         if phys_ub_nosamp is None:
         	phys_ub_nosamp = phys_ub
+        if interior_search_restarts_nosamp is None:
+        	interior_search_restarts = interior_search_restarts
         self.phys_lb_nosamp = phys_lb_nosamp
         self.phys_ub_nosamp = phys_ub_nosamp
 
