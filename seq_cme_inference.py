@@ -928,7 +928,7 @@ class ResultData:
                  'phys_ub','phys_lb','Ncells')
         for attr in attrs:
             setattr(self,attr,getattr(search_results,attr))
-        if has attr(search_results,'init_pattern'):
+        if hasattr(search_results,'init_pattern'):
             setattr(self,'init_pattern',getattr(search_results,'init_pattern'))
         else:
             setattr(self,'init_pattern','moments')
