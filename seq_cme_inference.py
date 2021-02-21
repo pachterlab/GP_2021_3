@@ -252,8 +252,6 @@ def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True,nosamp=Fa
                                     bins=np.arange(result_data.N[i_])-0.5,density=True,log=log)
             ax1[axis_location].plot(np.arange(result_data.N[i_]),Pa)
             ax1[axis_location].set_xlim([-0.5,result_data.N[i_]-1.5])
-
-
     fig1.tight_layout(pad=0.02)
 
 def chisq_best_param_correction(result_data,method='nearest',Niter_=10,viz=True,szfig=(2,5),figsize=(10,3),overwrite=False):
@@ -347,70 +345,70 @@ def get_transcriptome(transcriptome_filepath,repeat_thr=15):
     
 def select_gene_set(loom_filepaths,feat_dict,viz=False,
                           results_to_exclude=[],seed=6,n_gen=10,
-                          filt_param=(0.01,0.01,350,350,4,4)):
+                          filt_param=(0.01,0.01,350,350,4,4),aesthetics=((12,4),0.15,3,"Spectral")):
     """
-    Examines a set of .loom files and 
+    Examines a set of .loom files and selects a set of genes. Inputs:
+    loom_filepaths: list of strings pointing to .loom files to access. 
+    feat_dict: dictionary output by get_transcriptome. Used to select features with data. 
+    viz: whether to visualize the set of genes filtered by clustering.
+    results_to_exclude: list of strings pointing to previous search results. 
+        The genes examined in these results are exluded from analysis to avoid duplication of work.
+    seed: rng seed for selecting a random set of genes.
+    n_gen: number of genes to select for analysis
+    filt_param: Min threshold for mean, max threshold for max, mean threshold for max. Odd: U, even: S.
+
+    The current workflow is optimized for kallisto|bus, so the ambiguous layer is ignored.
     """
+    sz,alf,ptsz,cmap = aesthetics
 
     n_datasets = len(loom_filepaths)
 
     for i_data in range(n_datasets):
+        #load in the loom file, compute number of cells remaining after upstream processing
         loom_filepath = loom_filepaths[i_data]
         print('Dataset: '+loom_filepath)
         vlm = vcy.VelocytoLoom(loom_filepath)
-        gene_names_vlm = vlm.ra['Gene']
-        #check which genes I have length data for
-        sel_ind_annot = [k for k in range(len(gene_names_vlm)) if gene_names_vlm[k] in feat_dict]
-        
-        NAMES = [gene_names_vlm[k] for k in range(len(sel_ind_annot))]
-        COUNTS = collections.Counter(NAMES)
-        sel_ind = [x for x in sel_ind_annot if COUNTS[gene_names_vlm[x]]==1]
-
-        print(str(len(gene_names_vlm))+' features observed, '+str(len(sel_ind_annot))+' match genome annotations. '
-            +str(len(sel_ind))+' are unique. '
-            +str(len(vlm.ca[list(vlm.ca.keys())[0]]))+' cells detected.')
-
         Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
-
-
-        gene_names = gene_names_vlm[sel_ind]
-        S_max = np.amax(vlm.S[sel_ind,:],1)
-        U_max = np.amax(vlm.U[sel_ind,:],1)
-        S_mean = np.mean(vlm.S[sel_ind,:],1)
-        U_mean = np.mean(vlm.U[sel_ind,:],1)
         
-        #aesthetics
-        sz=(12,4)
-        alf=0.15
-        ptsz=3
 
+        #check which genes are represented in the dataset
+        gene_names_vlm = vlm.ra['Gene']
+        ann_filt = identify_annotated_genes(gene_names_vlm,feat_dict)
+
+        vlm.filter_genes(by_custom_array=ann_filt)
+        print(str(Ncells)+ ' cells detected.')
+
+        gene_names = np.asarray(vlm.ra['Gene'])
+        S_max = np.amax(vlm.S,1)
+        U_max = np.amax(vlm.U,1)
+        S_mean = np.mean(vlm.S,1)
+        U_mean = np.mean(vlm.U,1)        
+
+        #compute the lengths of each gene in filtered matrix
         len_arr = np.asarray([feat_dict[k] for k in gene_names])
 
-        warnings.filterwarnings("ignore")
-        clusters = KMeans(n_clusters=2,init=np.asarray([[4,-2.5],[4.5,-0.5]]),algorithm="full").fit(
-            np.vstack((np.log10(len_arr),np.log10(S_mean + 0.001))).T)
-        warnings.resetwarnings()
-
-        gene_cluster_labels = clusters.labels_
+        #compute clusters for easy identification of low-expression genes
+        gene_cluster_labels = compute_cluster_labels(len_arr,S_mean)
         
+        #plot all genes, color by cluster: blue for high expression, red for low.
         if viz:
             var_name = ('S','U')
-            var_arr = (S_mean,U_mean)
+            var_arr = ('S_mean','U_mean')
 
             fig1, ax1 = plt.subplots(nrows=1,ncols=2,figsize=sz)
             for i in range(2):
-                ax1[i].scatter(np.log10(len_arr), np.log10(var_arr[i] + 0.001),s=ptsz,
-                            c=gene_cluster_labels,alpha=alf,cmap="Spectral")
+                ax1[i].scatter(np.log10(len_arr), np.log10(eval(var_arr[i]) + 0.001),s=ptsz,
+                            c=gene_cluster_labels,alpha=alf,cmap=cmap)
                 ax1[i].set_xlabel('log10 gene length')
                 ax1[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
         
+        #plot genes in high-expression cluster
         gene_filter = np.array(gene_cluster_labels,dtype=bool)
-        
         if viz:
             fig2, ax2 = plt.subplots(nrows=1,ncols=2,figsize=sz)
             for i in range(2):
                 ax2[i].scatter(np.log10(len_arr)[gene_filter], 
-                            np.log10(var_arr[i] + 0.001)[gene_filter],s=ptsz,c='k',alpha=alf)
+                            np.log10(eval(var_arr[i]) + 0.001)[gene_filter],s=ptsz,c='k',alpha=alf)
                 ax2[i].set_xlabel('log10 gene length')
                 ax2[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
                 
@@ -423,16 +421,16 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
             & (S_max > filt_param[4]) \
             & (U_max > filt_param[5])
         
-                    
+        #filer genes based on expression and sparsity
         gene_names_filt = gene_names[gene_filter2]
         vlm_gene_filter =  np.asarray([True if x in gene_names_filt else False for x in vlm.ra['Gene']],dtype=bool)
         vlm.filter_genes(by_custom_array=vlm_gene_filter)
         print(str(len(vlm.ra['Gene']))+' genes retained in loom structure based on filter.')
         
-        random.seed(a=seed)
 
         sample_domain = np.arange(len(vlm.ra['Gene']))
         
+        #Certain genes might have to be excluded based on previous runs, if we don't want to duplicate work.
         if len(results_to_exclude)>0:
             GN=[]
             for i_ in range(len(results_to_exclude)):
@@ -443,8 +441,11 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
             GN = set(GN)
             print(str(len(GN))+' genes were unique.')
             sample_domain = [i_ for i_ in sample_domain if vlm.ra['Gene'][i_] not in GN]
-        
-        print(str(len(sample_domain))+' genes retained in loom structure based on previous results.')
+            print(str(len(sample_domain))+' genes retained in loom structure based on previous results.')
+
+        #Finally, we would like to construct a set of genes to sample from.
+        #If we are interested in examining multiple datasets, we simply take the intersection of genes
+        #that meet the filtering criteria in all.
         SAMPLE_DOMAIN_NAMES = vlm.ra['Gene'][sample_domain]
         if i_data == 0:
             set_intersection = set(SAMPLE_DOMAIN_NAMES)
@@ -454,6 +455,9 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
         print('-----------')
         
 
+    #Finally, we select a subset of genes by sampling without replacement from the set of genes 
+    #that meet our desired criteria in all datasets.
+    random.seed(a=seed)
     trunc_gene_set = np.array(list(set_intersection))
     if n_gen < len(trunc_gene_set):
         gene_select = np.random.choice(trunc_gene_set,n_gen,replace=False)
@@ -466,15 +470,7 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
     trunc_gene_set = list(trunc_gene_set)
     return gene_select, trunc_gene_set
 
-def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs=[2,2]):
-    """
-    Takes a set of genes and generates a SearchData variable with the relevant histograms and counts.
-
-    """
-    n_gen = len(gene_set)
-
-    vlm = vcy.VelocytoLoom(loom_filepath)
-    gene_names_vlm = vlm.ra['Gene']
+def identify_annotated_genes(gene_names_vlm,feat_dict):
     n_gen_tot = len(gene_names_vlm)
     #check which genes I have length data for
     sel_ind_annot = [k for k in range(len(gene_names_vlm)) if gene_names_vlm[k] in feat_dict]
@@ -482,71 +478,87 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
     NAMES = [gene_names_vlm[k] for k in range(len(sel_ind_annot))]
     COUNTS = collections.Counter(NAMES)
     sel_ind = [x for x in sel_ind_annot if COUNTS[gene_names_vlm[x]]==1]
-    Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
 
     print(str(len(gene_names_vlm))+' features observed, '+str(len(sel_ind_annot))+' match genome annotations. '
-        +str(len(sel_ind))+' are unique. '
-        +str(Ncells)+' cells detected.')
+        +str(len(sel_ind))+' are unique. ')
+
+    ann_filt = np.zeros(n_gen_tot,dtype=bool)
+    ann_filt[sel_ind] = True
+    return ann_filt 
+
+def compute_cluster_labels(len_arr,S_mean,init=np.asarray([[4,-2.5],[4.5,-0.5]])):
+    warnings.filterwarnings("ignore")
+    clusters = KMeans(n_clusters=2,init=init,algorithm="full").fit(
+        np.vstack((np.log10(len_arr),np.log10(S_mean + 0.001))).T)
+    warnings.resetwarnings()
+    gene_cluster_labels = clusters.labels_
+    return gene_cluster_labels
+
+def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs=[2,2],
+    aesthetics = ((12,4),3, [[0.3]*3, [0]*3, [0]*3], [[0.9]*3, [0.8]*3, [0.2]*3, [0,0,1]],[0.02,0.1,0.1], [0.2,0.3,0.3,0.8])):
+    """
+    Takes a set of genes and generates a SearchData variable with the relevant histograms and counts. Inputs:
+    loom_filepath: string pointing to a single .loom file to access.
+    feat_dict: dictionary output by get_transcriptome. 
 
 
-    sel_ind_bool_filter = np.zeros(n_gen_tot,dtype=bool)
-    sel_ind_bool_filter[sel_ind] = True
-    vlm.filter_genes(by_custom_array=sel_ind_bool_filter)
+    """
+
+
+    sz,ptsz,COL1,COL2,ALF1,ALF2=aesthetics
+
+    n_gen = len(gene_set)
+    vlm = vcy.VelocytoLoom(loom_filepath)
+    gene_names_vlm = vlm.ra['Gene']    
+    Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
+
+    ann_filt = identify_annotated_genes(gene_names_vlm,feat_dict)
+    vlm.filter_genes(by_custom_array=ann_filt)
+    print(str(Ncells)+ ' cells detected.')      
+
     gene_names = list(vlm.ra['Gene'])
     S_mean = np.mean(vlm.S,1)
     U_mean = np.mean(vlm.U,1)
     
-    #aesthetics
-    sz=(12,4)
-    alf=0.15
-    ptsz=3
 
     len_arr = np.asarray([feat_dict[k] for k in gene_names])
 
-    warnings.filterwarnings("ignore")
-    clusters = KMeans(n_clusters=2,init=np.asarray([[4,-2.5],[4.5,-0.5]]),algorithm="full").fit(
-        np.vstack((np.log10(len_arr),np.log10(S_mean + 0.001))).T)
-    warnings.resetwarnings()
-    gene_cluster_labels = clusters.labels_
-    
     gene_set_ind = [gene_names.index(gene_set[i_]) for i_ in range(n_gen)]
-    trunc_gene_set_ind = [gene_names.index(trunc_gene_set[i_]) for i_ in range(len(trunc_gene_set))]
-    low_expr_ind = np.where(gene_cluster_labels==0)[0]
-    high_expr_filt_out = np.setdiff1d(
-        np.where(gene_cluster_labels==1)[0],
-        trunc_gene_set_ind)
-
-    I_ = [low_expr_ind,high_expr_filt_out,trunc_gene_set_ind,gene_set_ind] 
-    COL = [[0.9]*3, [0.8]*3, [0.2]*3, [0,0,1]]
-    COL2 = [[0.3]*3, [0]*3, [0]*3]
-    ALF = [0.2,0.3,0.3,0.8]
-    ALF2 =  [0.02,0.1,0.1]
-
 
     if viz:
+        gene_cluster_labels = compute_cluster_labels(len_arr,S_mean)
+        trunc_gene_set_ind = [gene_names.index(trunc_gene_set[i_]) for i_ in range(len(trunc_gene_set))]
+        low_expr_ind = np.where(gene_cluster_labels==0)[0]
+        high_expr_filt_out = np.setdiff1d(
+            np.where(gene_cluster_labels==1)[0],
+            trunc_gene_set_ind)
+
+        I_ = [low_expr_ind,high_expr_filt_out,trunc_gene_set_ind,gene_set_ind] 
         
         warnings.filterwarnings("ignore")
         var_name = ('S','U')
-        var_arr = (S_mean,U_mean)
+        var_arr = ('S_mean','U_mean')
 
 
         fig1, ax1 = plt.subplots(nrows=1,ncols=2,figsize=sz)
         for i in range(2):
             for j in range(3):
-                ax1[i].scatter(np.log10(len_arr[I_[j]]), np.log10(var_arr[i][I_[j]] + 0.001),s=ptsz,
-                            color=COL2[j],alpha=ALF2[j],cmap="Spectral")
+                ax1[i].scatter(np.log10(len_arr[I_[j]]), np.log10(eval(var_arr[i])[I_[j]] + 0.001),s=ptsz,
+                            color=COL1[j],alpha=ALF1[j])
             ax1[i].set_xlabel('log10 gene length')
             ax1[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
 
         fig2, ax2 = plt.subplots(nrows=1,ncols=2,figsize=sz)
         for i in range(2):
             for j in range(4):
-                ax2[i].scatter(np.log10(len_arr[I_[j]]), np.log10(var_arr[i][I_[j]] + 0.001),s=ptsz,
-                            color=COL[j],alpha=ALF[j],cmap="Spectral")
+                ax2[i].scatter(np.log10(len_arr[I_[j]]), np.log10(eval(var_arr[i])[I_[j]] + 0.001),s=ptsz,
+                            color=COL2[j],alpha=ALF2[j])
             ax2[i].set_xlabel('log10 gene length')
             ax2[i].set_ylabel('log10 (mean '+var_name[i]+' + 0.001)')
         warnings.resetwarnings()
     
+
+    #compute the histograms!
     gene_select = gene_set_ind
     M = np.asarray([int(np.amax(vlm.U[gene_index])+offs[0]) for gene_index in gene_select])
     N = np.asarray([int(np.amax(vlm.S[gene_index])+offs[1]) for gene_index in gene_select])
@@ -573,6 +585,8 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
 
         gene_names.append(vlm.ra['Gene'][gene_select[i_]])
         gene_log_lengths.append(np.log10(feat_dict[vlm.ra['Gene'][gene_select[i_]]]))
+
+    #useful for plotting joint data, but not crucial.
     raw_U = np.array(raw_U)
     raw_S = np.array(raw_S)
     gene_log_lengths = np.array(gene_log_lengths)
@@ -662,10 +676,6 @@ def kl_obj(search_data,log_samp_fit_params=None):
 
 def gene_specific_optimizer(gene_search_in):
     samp_params = gene_search_in[0]
-    # if gene_search_in[0] is None:
-    #     samp_params = None
-    # else:
-    #     samp_params = gene_search_in[0]
 
     target_histogram = gene_search_in[1]
     limits = gene_search_in[2]
@@ -679,15 +689,12 @@ def gene_specific_optimizer(gene_search_in):
     init_pattern = search_params.init_pattern
 
     #initialize bounds and initial guesses
-    lb = 10**lb_log
-    ub = 10**ub_log
-    
     bnd = scipy.optimize.Bounds(lb_log,ub_log)
     
     #initialize using MoM if necessary
     x0 = np.random.rand(num_restarts,3)*(ub_log-lb_log)+lb_log
     if init_pattern != 'random': #this can be extended to other initialization patterns, like latin squares
-        x0[0] = MoM_initialization(moment_data,lb,ub,samp_params)
+        x0[0] = MoM_initialization(moment_data,lb_log,ub_log,samp_params)
 
     x = x0[0]
     err = np.inf
@@ -703,7 +710,14 @@ def gene_specific_optimizer(gene_search_in):
 
     return (err,x)
 
-def MoM_initialization(moment_data,lb,ub,samp=None):
+def MoM_initialization(moment_data,lb_log,ub_log,samp=None):
+    """
+    Initialize parameter search at the method of moments estimates.
+    lower bound and upper bound are harmonized with optimization routine and input as log10.
+    """
+    lb = 10**lb_log
+    ub = 10**ub_log
+    
     var_U, mean_U, mean_S = moment_data
     b = var_U / mean_U - 1
     if samp is not None:
@@ -718,6 +732,9 @@ def MoM_initialization(moment_data,lb,ub,samp=None):
     return x0
 
 def kl_div(data, proposal,EPS=1e-12):
+    """
+    Kullback-Leibler divergence between experimental data histogram and proposed PMF. Proposal clipped at EPS.
+    """
     proposal[proposal<EPS]=EPS
     filt = data>0
     data = data[filt]
