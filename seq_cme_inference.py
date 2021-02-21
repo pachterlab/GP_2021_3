@@ -14,37 +14,31 @@ import time
 import os
 from datetime import date
 import pickle
-from multiprocessing import Pool
+# from multiprocessing import Pool
 import random
+from scipy.fft import irfft2
 
 import sklearn
 from sklearn.cluster import KMeans
 import collections
 import warnings
+
+import scipy.stats.mstats
+from scipy.stats import norm
 	
 
 ########################
 ## Statistical testing
 ########################
-def chisq_gen(result_data,viz=False,nosamp=False):
-    NGEN_TESTED = result_data.n_gen
-    import scipy.stats.mstats
-    if not nosamp:
-        expected_freq = [cme_integrator_samp(
-                    np.insert(10**result_data.best_phys_params[i_],0,1), 
-                    10**result_data.gene_spec_samp_params[i_], 
-                    result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
-    else:
-        expected_freq = [cme_integrator_nosamp(
-                    np.insert(10**result_data.nosamp_gene_params[i_],0,1), 
-                    result_data.M[i_],result_data.N[i_],np.inf,'none').flatten() for i_ in range(NGEN_TESTED)]
-    for i_ in range(NGEN_TESTED):
+def chisq_gen(result_data,viz=False,nosamp=False,EPS=1e-12):    
+    samp = [None]*result_data.n_gen if nosamp else result_data.gene_spec_samp_params
+    expected_freq = [cme_integrator(result_data.best_phys_params[i_],[result_data.M[i_],result_data.N[i_]],samp[i_]).flatten() for i_ in range(result_data.n_gen)]
+    for i_ in range(result_data.n_gen):
         temp = expected_freq[i_]
-        EPS=1e-12
         temp[temp<EPS]=EPS
         expected_freq[i_] = temp
     csqarr = [scipy.stats.mstats.chisquare(result_data.hist[i_].flatten(), 
-                                           expected_freq[i_]) for i_ in range(NGEN_TESTED)]
+                                           expected_freq[i_]) for i_ in range(result_data.n_gen)]
     csq = np.array([csqarr[i_][0] for i_ in range(len(csqarr))])
     pval = np.array([csqarr[i_][1] for i_ in range(len(csqarr))])
 
@@ -148,21 +142,18 @@ def resample_opt_mc_viz(RES,resamp_vec=(1,2,3,4),Ntries=1000,figsize=(8,2),log=T
         ax1[samp_num].set_title('Ngen = '+str(resamp_vec[samp_num]))
 
 def plot_param_marg(result_data,nbin=15,nosamp=False):
-    from scipy.stats import norm
-
     fig1,ax1=plt.subplots(nrows=1,ncols=3,figsize=(5,2))
 
-    param_nm = ('burst size','deg rate','splice rate')
+    param_nm = ('burst size','splice rate','deg rate')
     for i in range(3):
         if not nosamp:
             DATA = result_data.best_phys_params[:,i]
-            LB = result_data.phys_lb[i]
-            UB = result_data.phys_ub[i]
+            LB = result_data.search_params.lb_log[i]
+            UB = result_data.search_params.ub_log[i]
         else: 
             DATA = result_data.nosamp_gene_params[:,i]
-            LB = result_data.phys_lb_nosamp[i]
-            UB = result_data.phys_ub_nosamp[i]
-
+            LB = result_data.nosamp_search_params.lb_log[i]
+            UB = result_data.nosamp_search_params.ub_log[i]
         ax1[i].hist(DATA,nbin,density=True)
     #     print(np.mean(best_phys_params[:,i]))
 
@@ -181,22 +172,24 @@ def plot_param_marg(result_data,nbin=15,nosamp=False):
 def plot_param_L_dep(result_data,nosamp=False):
     fig1,ax1=plt.subplots(nrows=1,ncols=3,figsize=(5,2))
 
-    name_var = ('log b','log gamma','log beta')
+    name_var = ('log b','log beta','log gamma')
     for i in range(3):
         if not nosamp:
             DATA = result_data.best_phys_params[:,i]
-            LB = result_data.phys_lb[i]
-            UB = result_data.phys_ub[i]
+            LB = result_data.search_params.lb_log[i]
+            UB = result_data.search_params.ub_log[i]
         else: 
             DATA = result_data.nosamp_gene_params[:,i]
-            LB = result_data.phys_lb_nosamp[i]
-            UB = result_data.phys_ub_nosamp[i]
+            LB = result_data.nosamp_search_params.lb_log[i]
+            UB = result_data.nosamp_search_params.ub_log[i]
 
         ax1[i].scatter(result_data.gene_log_lengths,DATA,c='k',s=1,alpha=0.5)
+
         ax1[i].set_xlabel('log L')
         ax1[i].set_ylabel(name_var[i])
         ax1[i].set_ylim([LB,UB])
     fig1.tight_layout()
+
 
 def plot_KL(result_data,nbins=15,nosamp=False):
     if not nosamp:
@@ -208,36 +201,35 @@ def plot_KL(result_data,nbins=15,nosamp=False):
     plt.xlabel('KL divergence')
     plt.ylabel('# genes')
 
-def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True,nosamp=False):
+def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True,nosamp=False,NGEN_PLOT=None):
     (nrows,ncols)=sz
     fig1,ax1=plt.subplots(nrows=nrows,ncols=ncols,figsize=figsize)
-    
-    NGEN_PLOT = np.prod(sz)
+    if NGEN_PLOT is None:
+        NGEN_PLOT = np.prod(sz)
     for i_ in range(NGEN_PLOT):
+        lm = [result_data.M[i_],result_data.N[i_]]
+        if marg == 'mature':
+            lm[0]=1
+        if marg == 'nascent':
+            lm[1]=1
         axis_location = np.unravel_index(i_,sz)
         
-        if not nosamp:
-            Pa = cme_integrator_samp(numpy.insert(10**result_data.best_phys_params[i_],0,1),
-                                    10**result_data.gene_spec_samp_params[i_],
-                                     result_data.M[i_],result_data.N[i_],np.inf,marg)
-        else:
-            Pa = cme_integrator_nosamp(numpy.insert(10**result_data.nosamp_gene_params[i_],0,1),
-                                     result_data.M[i_],result_data.N[i_],np.inf,marg)
+        samp = None if nosamp else result_data.gene_spec_samp_params[i_]
+        Pa = np.squeeze(cme_integrator(result_data.best_phys_params[i_],lm,samp))
 
         if log and marg == 'none':
         	Pa[Pa<1e-8]=1e-8
         	Pa = np.log10(Pa)
         if title:
-            if hasattr(result_data,'gene_rej') and result_data.gene_rej[i_] and not nonsamp:
+            if hasattr(result_data,'gene_rej') and result_data.gene_rej[i_] and not nosamp:
                 ax1[axis_location].set_title(result_data.gene_names[i_]+' (rejected)',fontdict={'fontsize': 9})
-            if hasattr(result_data,'gene_rej_nosamp') and result_data.gene_rej_nosamp[i_] and nonsamp:
+            if hasattr(result_data,'gene_rej_nosamp') and result_data.gene_rej_nosamp[i_] and nosamp:
                 ax1[axis_location].set_title(result_data.gene_names[i_]+' (rejected)',fontdict={'fontsize': 9})
             else:
                 ax1[axis_location].set_title(result_data.gene_names[i_],fontdict={'fontsize': 9})
         ax1[axis_location].set_xticks([])
         ax1[axis_location].set_yticks([])
         if marg=='none':
-            
             X_,Y_ = np.meshgrid(np.arange(result_data.M[i_])-0.5,
                                 np.arange(result_data.N[i_])-0.5)
             ax1[axis_location].contourf(X_.T,Y_.T,Pa,20,cmap='summer')
@@ -258,7 +250,7 @@ def plot_genes(result_data,sz,figsize,marg='none',log=False,title=True,nosamp=Fa
         if marg=='mature':
             ax1[axis_location].hist(result_data.raw_S[i_],
                                     bins=np.arange(result_data.N[i_])-0.5,density=True,log=log)
-            ax1[axis_location].plot(np.arange(result_data.N[i_]),Pa.T)
+            ax1[axis_location].plot(np.arange(result_data.N[i_]),Pa)
             ax1[axis_location].set_xlim([-0.5,result_data.N[i_]-1.5])
 
 
@@ -327,10 +319,24 @@ def build_grid(n_pts,samp_lb,samp_ub):
     return (X,Y,sampl_vals)
 
 def get_transcriptome(transcriptome_filepath,repeat_thr=15):
+    """
+    Imports transcriptome length/repeat from a previously generated file. Input:
+    transcriptome_filepath: path to the file. This is a simple space-separated file.
+        The convention for each line is name - length - 5mers - 6mers -.... 50mers - more
+    repeat_thr: threshold for minimum repeat length to consider. 
+        By default, this is 15, and so will return number of polyA stretches of 
+        length 15 or more in the gene.
+
+    Returns two dictionaries:
+    len_dict: Maps gene name to gene length, in bp.
+    repeat_dict: Maps gene name to number of repeats.
+
+    repeat_dict is not used, but is supported in the current version of the code.
+    """
     repeat_dict = {}
     len_dict = {}
 
-    #remember that the convention is name - length - 5mers - 6mers -.... 50mers - more
+
     thr_ind = repeat_thr-3
     with open(transcriptome_filepath,'r') as file:   
         for line in file.readlines():
@@ -342,6 +348,9 @@ def get_transcriptome(transcriptome_filepath,repeat_thr=15):
 def select_gene_set(loom_filepaths,feat_dict,viz=False,
                           results_to_exclude=[],seed=6,n_gen=10,
                           filt_param=(0.01,0.01,350,350,4,4)):
+    """
+    Examines a set of .loom files and 
+    """
 
     n_datasets = len(loom_filepaths)
 
@@ -457,7 +466,11 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
     trunc_gene_set = list(trunc_gene_set)
     return gene_select, trunc_gene_set
 
-def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False):
+def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs=[2,2]):
+    """
+    Takes a set of genes and generates a SearchData variable with the relevant histograms and counts.
+
+    """
     n_gen = len(gene_set)
 
     vlm = vcy.VelocytoLoom(loom_filepath)
@@ -535,8 +548,8 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False):
         warnings.resetwarnings()
     
     gene_select = gene_set_ind
-    M = np.asarray([int(np.amax(vlm.U[gene_index])+2) for gene_index in gene_select])
-    N = np.asarray([int(np.amax(vlm.S[gene_index])+2) for gene_index in gene_select])
+    M = np.asarray([int(np.amax(vlm.U[gene_index])+offs[0]) for gene_index in gene_select])
+    N = np.asarray([int(np.amax(vlm.S[gene_index])+offs[1]) for gene_index in gene_select])
 
     hist = []
     moment_data = []
@@ -594,41 +607,49 @@ def dump_results(file_string,include_nosamp=False):
     if include_nosamp:
 	    with open(file_string+'/nosamp.pickle','rb') as hf:
 	    	PL = pickle.load(hf)
-	    	SO.set_nosamp_results(PL[2],PL[3])
+	    	SO.set_nosamp_results(PL[2],PL[3],PL[7])
 
     with open(file_string+'/result.pickle','wb') as hf:
     	pickle.dump(SO, hf)
 
 ########################
-## Estimation for a given sequencing parameter tuple
+## Estimation for a given sequencing parameter tuple (could be None, which runs the non-sampling routine)
 ########################
-def nonvec_driver(search_data,i):
-    SAMP_ = search_data.sampl_vals[i]
+def grid_search_driver(search_data,i=None):
+    if i is None:
+        SAMP_ = None
+        file_string = search_data.file_string+'/nosamp.pickle'
+    else:
+        SAMP_ = search_data.sampl_vals[i]
+        file_string = search_data.file_string+'/grid_point_'+str(i)+'.pickle'
     ZZ = kl_obj(search_data,SAMP_)
     
+    meta = ('Obj func total','Runtime','Best transcriptional parameters','Obj func separate','Sample value','Init and final time','Search parameters')
+    with open(file_string,'wb') as hf:
+	    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],SAMP_,ZZ[4],meta,search_data.search_params),hf)
 
-    with open(search_data.file_string+'/grid_point_'+str(i)+'.pickle','wb') as hf:
-	    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],SAMP_,ZZ[4],
-	        ('Obj func total','Runtime','Best transcriptional parameters','Obj func separate','Sample value','Init and final time')), 
-	        hf)
-
-def kl_obj(search_data,log_samp_fit_params):
+def kl_obj(search_data,log_samp_fit_params=None):
     time_in = time.time()
 
     gene_itr = range(search_data.n_gen)
 
-    log_samp_params = np.asarray(
-        [(search_data.gene_log_lengths[i_] + log_samp_fit_params[0], 
-          log_samp_fit_params[1]) for i_ in range(search_data.n_gen)])
-    interior_params = (search_data.interior_search_restarts,
-                       search_data.phys_lb,search_data.phys_ub,
-                       search_data.interior_maxiter,search_data.init_pattern)
+    if log_samp_fit_params is not None:
+        if search_data.search_params.use_lengths:
+            log_samp_params = np.asarray(
+                [(search_data.gene_log_lengths[i_] + log_samp_fit_params[0], 
+                  log_samp_fit_params[1]) for i_ in range(search_data.n_gen)])
+        else:
+            log_samp_params = np.asarray(
+                [(log_samp_fit_params[0], 
+                  log_samp_fit_params[1]) for i_ in range(search_data.n_gen)])
+    else: 
+        log_samp_params = [None]*search_data.n_gen
 
     param_list = [(log_samp_params[i_], search_data.hist[i_], 
-                   search_data.M[i_], search_data.N[i_], 
-                   interior_params, search_data.moment_data[i_]) for i_ in gene_itr]
+                   [search_data.M[i_], search_data.N[i_]], 
+                   search_data.moment_data[i_], search_data.search_params) for i_ in gene_itr]
 
-    results = [gene_specific_optimizer(param_list[i_],i_) for i_ in gene_itr]
+    results = [gene_specific_optimizer(param_list[i_]) for i_ in gene_itr]
     errors = [results[i_][0] for i_ in gene_itr]
     x_arr = [results[i_][1] for i_ in gene_itr]
     obj_func =  sum(errors)
@@ -639,91 +660,64 @@ def kl_obj(search_data,log_samp_fit_params):
     
     return (obj_func,d_time,x_arr,errors,(time_in,time_out))
 
-def gene_specific_optimizer(params,gene_index):
-#     print('gene optimizer')
-    samp_params = 10**params[0]
-    gene_specific_data = params[1]
-    M = params[2]
-    N = params[3]
-    interior_params = params[4]
-    GSMD = params[5] #gene specific moment data
-    time_in = time.time()
-    num_restarts = interior_params[0]
-    lb_log = interior_params[1]
-    ub_log = interior_params[2]
-    maxiter = interior_params[3]
-    init_pattern = interior_params[4]
-    
+def gene_specific_optimizer(gene_search_in):
+    samp_params = gene_search_in[0]
+    # if gene_search_in[0] is None:
+    #     samp_params = None
+    # else:
+    #     samp_params = gene_search_in[0]
+
+    target_histogram = gene_search_in[1]
+    limits = gene_search_in[2]
+    moment_data = gene_search_in[3] #gene specific moment data
+    search_params = gene_search_in[4]
+
+    num_restarts = search_params.num_restarts
+    lb_log = search_params.lb_log
+    ub_log = search_params.ub_log
+    maxiter = search_params.maxiter
+    init_pattern = search_params.init_pattern
+
+    #initialize bounds and initial guesses
     lb = 10**lb_log
     ub = 10**ub_log
     
     bnd = scipy.optimize.Bounds(lb_log,ub_log)
     
-    #u var, u mean, s mean
-    b_fit = np.clip((GSMD[0] / GSMD[1] - 1) / samp_params[0] - 1, lb[0], ub[0])
-    gamma_fit = np.clip(b_fit * samp_params[1] / GSMD[2], lb[1], ub[1])
-    beta_fit = np.clip(b_fit * samp_params[0] / GSMD[1], lb[2], ub[2])
-    x0 = np.log10(np.asarray([b_fit, gamma_fit, beta_fit]))
-    if init_pattern == 'random':
-    	x0 = np.random.rand(3)*(ub_log-lb_log)+lb_log
-    
-    res_arr = scipy.optimize.minimize(lambda x: kl_div(
-        gene_specific_data,
-        cme_integrator_samp(np.insert(10**x,0,1), samp_params, M,N,np.inf,'none')),
-                                            x0=x0, bounds=bnd,
-                                      options={'maxiter':maxiter,'disp':False})
-    x = res_arr.x
-    err = res_arr.fun
-    err_orig = err
-    
+    #initialize using MoM if necessary
+    x0 = np.random.rand(num_restarts,3)*(ub_log-lb_log)+lb_log
+    if init_pattern != 'random': #this can be extended to other initialization patterns, like latin squares
+        x0[0] = MoM_initialization(moment_data,lb,ub,samp_params)
+
+    x = x0[0]
+    err = np.inf
     ERR_THRESH = 0.99
-    
-    for rest_ind in range(num_restarts-1):
-        x0_rand = np.random.rand(3)*(ub_log-lb_log)+lb_log
-#         print(str(rest_ind) +'\t'+str(x0_rand))
+
+    for ind in range(num_restarts):
         res_arr = scipy.optimize.minimize(lambda x: kl_div(
-            gene_specific_data,
-            cme_integrator_samp(np.insert(10**x,0,1), samp_params, M,N,np.inf,'none')),
-                                                x0=x0_rand, bounds=bnd,
-                                          options={'maxiter':maxiter,'disp':False})
-        if res_arr.fun < err*ERR_THRESH:
+            target_histogram,
+            cme_integrator(x, limits, samp_params)),x0=x0[ind], bounds=bnd,options={'maxiter':maxiter,'disp':False})
+        if res_arr.fun < err*ERR_THRESH: #do not replace old best estimate if there is little marginal benefit
             x = res_arr.x
             err = res_arr.fun
+
     return (err,x)
 
-def cme_integrator_samp(phys,samp,M,N,t,marg):
-    if marg=='mature':
-        M=1
-    elif marg=='nascent':
-        N=1
-    NN = N
-    N = 1+int(np.ceil((NN-1)/2))
-    l=np.arange(M)
-    k=np.arange(N)
-    u_ = np.exp(samp[0]*(np.exp(-2j*np.pi*l/M)-1))-1
-    v_ = np.exp(samp[1]*(np.exp(-2j*np.pi*k/NN)-1))-1
-    u,v=np.meshgrid(u_,v_)
-    u=u.flatten()
-    v=v.flatten()
+def MoM_initialization(moment_data,lb,ub,samp=None):
+    var_U, mean_U, mean_S = moment_data
+    b = var_U / mean_U - 1
+    if samp is not None:
+        samp = 10**samp
+        b = b / samp[0] - 1
+    else:
+        samp = [1,1]
+    b = np.clip(b,lb[0],ub[0])
+    bet = np.clip(b * samp[0] / mean_U, lb[1], ub[1])
+    gam = np.clip(b * samp[1] / mean_S, lb[2], ub[2])
+    x0 = np.log10(np.asarray([b,bet,gam]))
+    return x0
 
-    
-    fun = lambda x: INTFUNC_(x,phys[1:],u,v)
-
-    T_ = time.time()
-    INT = scipy.integrate.quad_vec(fun,0,t,epsabs=1e-20,epsrel=1e-5,full_output=True)
-    T__ = time.time()-T_
-    I2 = INT[0]
-    
-    I = np.exp(I2*phys[0])
-    I = np.reshape(I.T,(N,M))
-    
-    N_fin = N+1 if np.mod(NN-1,2)==0 else -1
-    I=np.vstack((I,np.hstack((np.reshape(
-        np.flipud(I[1:N_fin,0].conj()),(N_fin-2,1)),np.flip(I[1:N_fin,1:].conj(),(0,1))))))
-    return np.real(np.fft.ifft2(I)).T 
-
-def kl_div(data, proposal):
-    EPS = 1e-12; 
+def kl_div(data, proposal,EPS=1e-12):
     proposal[proposal<EPS]=EPS
     filt = data>0
     data = data[filt]
@@ -731,134 +725,90 @@ def kl_div(data, proposal):
     d=data*np.log(data/proposal)
     return np.sum(d)
 
-def INTFUNC_(x,params,U,V):
-    f = params[2]/(params[2]-params[1])
-    Ufun = f*V*np.exp(-params[1]*x) + (U-V*f)*np.exp(-params[2]*x)
-    filt = ~np.isfinite(f)
-    if np.any(filt): #params[1] = params[2]
-    	Ufun[filt] = np.exp(-params[1]*x)*(U[filt] + params[1]*V[filt]*x)
-    Ufun = params[0]*Ufun
-    return Ufun/(1-Ufun)
 
-########################
-## Non-sampling optimizer
-########################
+def cme_integrator(p,lm,samp=None,method='fixed_quad',fixed_quad_T=10,quad_order=60,quad_vec_T=np.inf):
+    """
+    Core CME integration code. Input:
+    p: parameters [b,beta,gamma] = burst size, splice rate, degradation rate used for steady-state evaluation.
+        This formalization presupposes that initiation rate is set to 1. 
+        These parameters are given to the function in log10 space!
+    lm: array of limits. The 2d histogram is evaluated over [0,...,lm[0]]x[0,...,lm[1]]. 
+        This should be appropriately padded with respect to the experimental data.
+    samp: which Poisson sampling parameters to use, if any.
+        For standard, non-sampled model, use None. 
+        For two distinct sampling parameters for mature and nascent, pass in a vector of length 2.
+    method: quadrature method. Default setting is 'fixed_quad', Gaussian quadrature of fixed order.
+        'fixed_quad' is very cheap (can be vectorized easier), but less precise.
+        'quad_vec' is adaptive quadrature, and about an order of magnitude slower.
+    fixed_quad_T: time horizon scaling for fixed quadrature. 
+        Intrinsic timescale is given by 1/beta + 1/gamma. 10 is generally OK.
+    quad_order: order of Gaussian quadrature. 60 is generally OK.
+    quad_vec_T: time horizon scaling for adaptive quadrature. Tuning this does not generally improve performance. 
+    """
+    b,bet,gam = 10**p
+    u = []
+    mx = np.copy(lm)
 
-def nosamp_driver(search_data):
-    ZZ = kl_obj_nosamp(search_data)
+    #initialize the generating function evaluation points, potentially adjusting for sampling.
+    mx[-1] = mx[-1]//2 + 1
+    for i in range(len(mx)):
+        l = np.arange(mx[i])
+        u_ = np.exp(-2j*np.pi*l/lm[i])-1
+        if samp is not None:
+            u_ = np.exp((10**samp[i])*u_)-1
+        u.append(u_)
+    g = np.meshgrid(*[u_ for u_ in u], indexing='ij')
+    for i in range(len(mx)):
+        g[i] = g[i].flatten()[:,np.newaxis]
 
-    with open(search_data.file_string+'/nosamp'+'.pickle','wb') as hf:
-	    pickle.dump((ZZ[0],ZZ[1],ZZ[2],ZZ[3],(np.nan,np.nan),ZZ[4],
-	        ('Obj func total','Runtime','Best transcriptional parameters','Obj func separate','Sample value','Init and final time')), 
-	        hf)
+    if bet != gam: #compute weights for the ODE solution.
+        f = b*bet/(bet-gam)
+        g[1] *= f
+        g[0] *= b
+        g[0] -= g[1]
+    else:
+        g[1] *= (b*gam)
+        g[0] *= b
 
-def kl_obj_nosamp(search_data):
-    time_in = time.time()
+    #define function to integrate by quadrature.
+    fun = lambda x: INTFUN(x,g,bet,gam)
+    if method=='quad_vec':
+        T = quad_vec_T*(1/bet+1/gam)
+        gf = scipy.integrate.quad_vec(fun,0,T)[0]
+    if method=='fixed_quad':
+        T = fixed_quad_T*(1/bet+1/gam)
+        gf = scipy.integrate.fixed_quad(fun,0,T,n=quad_order)[0]
 
-    gene_itr = range(search_data.n_gen)
+    #convert back to the probability domain, renormalize to ensure non-negativity.
+    gf = np.exp(gf) #gf can be multiplied by k in the argument, but this is not relevant for the 3-parameter input.
+    gf = gf.reshape(tuple(mx))
+    Pss = irfft2(gf, s=tuple(lm)) 
+    Pss = np.abs(Pss)/np.sum(np.abs(Pss))
+    return Pss
 
-    interior_params = (search_data.interior_search_restarts_nosamp,
-                       search_data.phys_lb_nosamp,search_data.phys_ub_nosamp,
-                       search_data.interior_maxiter,search_data.init_pattern)
-    param_list = [([], search_data.hist[i_], 
-                   search_data.M[i_], search_data.N[i_], 
-                   interior_params, search_data.moment_data[i_]) for i_ in gene_itr]
-
-    results = [gene_specific_optimizer_nosamp(param_list[i_],i_) for i_ in gene_itr]
-    errors = [results[i_][0] for i_ in gene_itr]
-    x_arr = [results[i_][1] for i_ in gene_itr]
-    obj_func =  sum(errors)
-    # print(np.str(np.round(log_samp_fit_params,2))+'\t'+str(np.round(obj_func,2)))
-    
-    time_out = time.time()
-    d_time = time_out-time_in
-    
-    return (obj_func,d_time,x_arr,errors,(time_in,time_out))
-
-def gene_specific_optimizer_nosamp(params,gene_index):
-#     print('gene optimizer, no sampling')
-    gene_specific_data = params[1]
-    M = params[2]
-    N = params[3]
-    interior_params = params[4]
-    GSMD = params[5] #gene specific moment data
-    time_in = time.time()
-    num_restarts = interior_params[0]
-    lb_log = interior_params[1]
-    ub_log = interior_params[2]
-    maxiter = interior_params[3]
-    init_pattern = interior_params[4]
-    
-    lb = 10**lb_log
-    ub = 10**ub_log
-    
-    bnd = scipy.optimize.Bounds(lb_log,ub_log)
-    
-    #u var, u mean, s mean
-    b_fit = np.clip(GSMD[0] / GSMD[1] - 1, lb[0], ub[0])
-    gamma_fit = np.clip(b_fit / GSMD[2], lb[1], ub[1])
-    beta_fit = np.clip(b_fit / GSMD[1], lb[2], ub[2])
-    x0 = np.log10(np.asarray([b_fit, gamma_fit, beta_fit]))
-    if init_pattern == 'random':
-    	x0 = np.random.rand(3)*(ub_log-lb_log)+lb_log
-    
-    res_arr = scipy.optimize.minimize(lambda x: kl_div(
-        gene_specific_data,
-        cme_integrator_nosamp(np.insert(10**x,0,1), M,N,np.inf,'none')),
-                                            x0=x0, bounds=bnd,
-                                      options={'maxiter':maxiter,'disp':False})
-    x = res_arr.x
-    err = res_arr.fun
-    err_orig = err
-    
-    ERR_THRESH = 0.99
-    
-    for rest_ind in range(num_restarts-1):
-        x0_rand = np.random.rand(3)*(ub_log-lb_log)+lb_log
-        res_arr = scipy.optimize.minimize(lambda x: kl_div(
-            gene_specific_data,
-            cme_integrator_nosamp(np.insert(10**x,0,1), M,N,np.inf,'none')),
-                                                x0=x0_rand, bounds=bnd,
-                                          options={'maxiter':maxiter,'disp':False})
-        if res_arr.fun < err*ERR_THRESH:
-            x = res_arr.x
-            err = res_arr.fun
-    return (err,x)
-
-def cme_integrator_nosamp(phys,M,N,t,marg):
-    if marg=='mature':
-        M=1
-    elif marg=='nascent':
-        N=1
-    NN = N
-    N = 1+int(np.ceil((NN-1)/2))
-    l=np.arange(M)
-    k=np.arange(N)
-    u_ = np.exp(-2j*np.pi*l/M)-1
-    v_ = np.exp(-2j*np.pi*k/NN)-1
-    u,v=np.meshgrid(u_,v_)
-    u=u.flatten()
-    v=v.flatten()
-    
-    fun = lambda x: INTFUNC_(x,phys[1:],u,v)
-
-    T_ = time.time()
-    INT = scipy.integrate.quad_vec(fun,0,t,epsabs=1e-20,epsrel=1e-5,full_output=True)
-    T__ = time.time()-T_
-    I2 = INT[0]
-    
-    I = np.exp(I2*phys[0])
-    I = np.reshape(I.T,(N,M))
-    
-    N_fin = N+1 if np.mod(NN-1,2)==0 else -1
-    I=np.vstack((I,np.hstack((np.reshape(
-        np.flipud(I[1:N_fin,0].conj()),(N_fin-2,1)),np.flip(I[1:N_fin,1:].conj(),(0,1))))))
-    return np.real(np.fft.ifft2(I)).T 
+def INTFUN(x,g,bet,gam):
+    """
+    Computes the Singh-Bokes integrand at time x. Used for numerical quadrature in cme_integrator.
+    """
+    U = np.exp(-bet*x)*g[0]+np.exp(-gam*x)*g[1]
+    return U/(1-U)
 
 
 ########################
 ## Class definitions
 ########################
+
+class SearchParameters:
+    def __init__(self):
+        pass
+    def define_search_parameters(self,num_restarts,lb_log,ub_log,maxiter,init_pattern ='moments',use_lengths=True):
+        self.num_restarts = num_restarts
+        self.lb_log = lb_log
+        self.ub_log = ub_log
+        self.maxiter = maxiter
+        self.init_pattern = init_pattern
+        self.use_lengths = True
+
 class SearchData:
     def __init__(self):
         pass
@@ -873,22 +823,8 @@ class SearchData:
         self.Ncells = Ncells
         self.raw_U = raw_U
         self.raw_S = raw_S
-    def set_interior_search_params(self,interior_search_restarts,phys_lb,phys_ub,interior_maxiter,init_pattern ='moments',phys_lb_nosamp=None,phys_ub_nosamp=None,interior_search_restarts_nosamp=None):
-        self.interior_search_restarts = interior_search_restarts
-        self.phys_lb = phys_lb
-        self.phys_ub = phys_ub
-        self.interior_maxiter = interior_maxiter
-        self.init_pattern = init_pattern
-        if phys_lb_nosamp is None:
-        	phys_lb_nosamp = phys_lb
-        if phys_ub_nosamp is None:
-        	phys_ub_nosamp = phys_ub
-        if interior_search_restarts_nosamp is None:
-        	interior_search_restarts_nosamp = interior_search_restarts
-        self.phys_lb_nosamp = phys_lb_nosamp
-        self.phys_ub_nosamp = phys_ub_nosamp
-        self.interior_search_restarts_nosamp = interior_search_restarts_nosamp
-
+    def set_search_params(self,search_params):
+        self.search_params = search_params
     def set_scan_grid(self,n_pt1,n_pt2,samp_lb,samp_ub):
         self.n_pt1 = n_pt1
         self.n_pt2 = n_pt2
@@ -908,9 +844,10 @@ class SearchData:
         self.T_ = T_
         self.gene_params = gene_params
         self.gene_spec_err = gene_spec_err
-    def set_nosamp_results(self,nosamp_gene_params,nosamp_gene_spec_err):
+    def set_nosamp_results(self,nosamp_gene_params,nosamp_gene_spec_err,nosamp_search_params):
         self.nosamp_gene_params = nosamp_gene_params
         self.nosamp_gene_spec_err = nosamp_gene_spec_err
+        self.nosamp_search_params = nosamp_search_params
 
 class ResultData:
     def __init__(self):
@@ -924,17 +861,16 @@ class ResultData:
         
     def set_parameters(self,search_results):
         attrs = ('n_pt1','n_pt2','N_pts','X','Y','sampl_vals',
-                 'interior_search_restarts','interior_maxiter',
-                 'phys_ub','phys_lb','Ncells')
+                 'search_params','Ncells')
         for attr in attrs:
             setattr(self,attr,getattr(search_results,attr))
-        if hasattr(search_results,'init_pattern'):
-            setattr(self,'init_pattern',getattr(search_results,'init_pattern'))
-        else:
-            setattr(self,'init_pattern','moments')
-        if hasattr(search_results,'phys_ub_nosamp'):
-            setattr(self,'phys_ub_nosamp',getattr(search_results,'phys_ub_nosamp'))
-            setattr(self,'phys_lb_nosamp',getattr(search_results,'phys_lb_nosamp'))
+        # if hasattr(search_results,'init_pattern'):
+        #     setattr(self,'init_pattern',getattr(search_results,'init_pattern'))
+        # else:
+        #     setattr(self,'init_pattern','moments')
+        # if hasattr(search_results,'phys_ub_nosamp'):
+        #     setattr(self,'phys_ub_nosamp',getattr(search_results,'phys_ub_nosamp'))
+        #     setattr(self,'phys_lb_nosamp',getattr(search_results,'phys_lb_nosamp'))
         self.divg = np.zeros(self.N_pts)
         self.gene_params = np.zeros((self.N_pts,0,3))
         self.gene_spec_err = np.zeros((self.N_pts,0))
@@ -943,8 +879,9 @@ class ResultData:
         self.T_ = np.zeros((self.N_pts,0))
 
         if hasattr(search_results,'nosamp_gene_params'):
-        	self.nosamp_gene_params = np.zeros((0,3))
-        	self.nosamp_gene_spec_err = np.zeros(0)
+            self.nosamp_gene_params = np.zeros((0,3))
+            self.nosamp_gene_spec_err = np.zeros(0)
+            self.nosamp_search_params = search_results.nosamp_search_params
 
     def set_variables(self,search_results):
         self.divg += search_results.divg
