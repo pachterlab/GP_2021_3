@@ -376,7 +376,7 @@ def chisq_best_param_correction(result_data,method='nearest',Niter_=10,viz=True,
     if method == 'raw':
         return best_param_est
 
-def compute_sigma(result_data,nosamp=False,use_sampling_dof=True):
+def compute_sigma(result_data,nosamp=False,use_sampling_dof=False):
     _,limits,samp,best_phys_params,n_gen,_,_ = get_result_data(result_data,False,nosamp,False)
     
     if use_sampling_dof:
