@@ -676,7 +676,7 @@ def compute_cluster_labels(len_arr,S_mean,init=np.asarray([[4,-2.5],[4.5,-0.5]])
     return gene_cluster_labels
 
 def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs=[2,2],
-    aesthetics = None,attr_names):
+    aesthetics = None,attr_names=['spliced','unspliced','Gene','CellID']):
     """
     Takes a set of genes and generates a SearchData variable with the relevant histograms and counts. Inputs:
     loom_filepath: string pointing to a single .loom file to access.
