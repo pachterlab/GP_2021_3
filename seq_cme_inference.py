@@ -675,7 +675,7 @@ def compute_cluster_labels(len_arr,S_mean,init=np.asarray([[4,-2.5],[4.5,-0.5]])
     gene_cluster_labels = clusters.labels_
     return gene_cluster_labels
 
-def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs=[2,2],
+def get_gene_data(loom_filepath,feat_dict,gene_set,sampling_gene_set,viz=False,offs=[2,2],
     aesthetics = None,attr_names=['spliced','unspliced','Gene','CellID']):
     """
     Takes a set of genes and generates a SearchData variable with the relevant histograms and counts. Inputs:
@@ -697,7 +697,7 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
     #get only the genes with length annotations
     S = S[ann_filt,:]
     U = U[ann_filt,:]
-    gene_names_vlm = gene_names_vlm[ann_filt]
+    gene_names_vlm = list(gene_names_vlm[ann_filt])
     # vlm = vcy.VelocytoLoom(loom_filepath)
     # gene_names_vlm = vlm.ra['Gene']    
     # Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
@@ -718,13 +718,13 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
 
     if viz:
         gene_cluster_labels = compute_cluster_labels(len_arr,S_mean)
-        trunc_gene_set_ind = [gene_names_vlm.index(trunc_gene_set[i_]) for i_ in range(len(trunc_gene_set))]
+        sampling_gene_set_ind = [gene_names_vlm.index(sampling_gene_set[i_]) for i_ in range(len(sampling_gene_set))]
         low_expr_ind = np.where(gene_cluster_labels==0)[0]
         high_expr_filt_out = np.setdiff1d(
             np.where(gene_cluster_labels==1)[0],
-            trunc_gene_set_ind)
+            sampling_gene_set_ind)
 
-        I_ = [low_expr_ind,high_expr_filt_out,trunc_gene_set_ind,gene_set_ind] 
+        I_ = [low_expr_ind,high_expr_filt_out,sampling_gene_set_ind,gene_set_ind] 
         
         warnings.filterwarnings("ignore")
         var_name = ('S','U')
