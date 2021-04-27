@@ -639,17 +639,17 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
     #Finally, we select a subset of genes by sampling without replacement from the set of genes 
     #that meet our desired criteria in all datasets.
     random.seed(a=seed)
-    trunc_gene_set = np.array(list(set_intersection))
-    if n_gen < len(trunc_gene_set):
-        gene_select = np.random.choice(trunc_gene_set,n_gen,replace=False)
+    sampling_gene_set = np.array(list(set_intersection))
+    if n_gen < len(sampling_gene_set):
+        gene_select = np.random.choice(sampling_gene_set,n_gen,replace=False)
         print(str(n_gen)+' genes selected.')
     else:
-        gene_select = trunc_gene_set
-        print(str(len(trunc_gene_set))+' genes selected: cannot satisfy query of '+str(n_gen)+' genes.')
+        gene_select = sampling_gene_set
+        print(str(len(sampling_gene_set))+' genes selected: cannot satisfy query of '+str(n_gen)+' genes.')
     
     gene_select=list(gene_select)
-    trunc_gene_set = list(trunc_gene_set)
-    return gene_select, trunc_gene_set
+    sampling_gene_set = list(sampling_gene_set)
+    return gene_select, sampling_gene_set
 
 def identify_annotated_genes(gene_names_vlm,feat_dict):
     n_gen_tot = len(gene_names_vlm)
@@ -690,14 +690,14 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
     n_gen = len(gene_set)
 
     # attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
-    S,U,gene_names,Ncells = import_vlm(loom_filepath,*attr_names)
+    S,U,gene_names_vlm,Ncells = import_vlm(loom_filepath,*attr_names)
     #check which genes are represented in the dataset
     # gene_names_vlm = vlm.ra['Gene']
-    ann_filt = identify_annotated_genes(gene_names,feat_dict)
+    ann_filt = identify_annotated_genes(gene_names_vlm,feat_dict)
     #get only the genes with length annotations
     S = S[ann_filt,:]
     U = U[ann_filt,:]
-    gene_names_vlm = gene_names[ann_filt]
+    gene_names_vlm = gene_names_vlm[ann_filt]
     # vlm = vcy.VelocytoLoom(loom_filepath)
     # gene_names_vlm = vlm.ra['Gene']    
     # Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
@@ -712,13 +712,13 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
     U_mean = np.mean(U,1)
     
 
-    len_arr = np.asarray([feat_dict[k] for k in gene_names])
+    len_arr = np.asarray([feat_dict[k] for k in gene_names_vlm])
 
-    gene_set_ind = [gene_names.index(gene_set[i_]) for i_ in range(n_gen)]
+    gene_set_ind = [gene_names_vlm.index(gene_set[i_]) for i_ in range(n_gen)]
 
     if viz:
         gene_cluster_labels = compute_cluster_labels(len_arr,S_mean)
-        trunc_gene_set_ind = [gene_names.index(trunc_gene_set[i_]) for i_ in range(len(trunc_gene_set))]
+        trunc_gene_set_ind = [gene_names_vlm.index(trunc_gene_set[i_]) for i_ in range(len(trunc_gene_set))]
         low_expr_ind = np.where(gene_cluster_labels==0)[0]
         high_expr_filt_out = np.setdiff1d(
             np.where(gene_cluster_labels==1)[0],
