@@ -2,19 +2,16 @@
 import numpy as np
 import numpy.matlib
 import matplotlib.pyplot as plt
-# %matplotlib inline
 
 import time
 import loompy as lp
 import scipy
-# import velocyto as vcy
-# %config InlineBackend.figure_format = 'retina'
 
 import time
 import os
 from datetime import date
 import pickle
-# from multiprocessing import Pool
+
 import random
 from scipy.fft import irfft2
 
@@ -27,6 +24,8 @@ import scipy.stats.mstats
 from scipy.stats import norm
 import numdifftools
 	
+
+
 
 ########################
 ## Statistical testing
@@ -224,26 +223,6 @@ def plot_param_marg(result_data,nbin=15,nosamp=False):
         ax1[i].set_xlabel('log10 value')
     fig1.tight_layout()
 
-# def plot_param_L_dep(result_data,nosamp=False):
-#     fig1,ax1=plt.subplots(nrows=1,ncols=3,figsize=(5,2))
-
-#     name_var = ('log b','log beta','log gamma')
-#     for i in range(3):
-#         if not nosamp:
-#             DATA = result_data.best_phys_params[:,i]
-#             LB = result_data.search_params.lb_log[i]
-#             UB = result_data.search_params.ub_log[i]
-#         else: 
-#             DATA = result_data.nosamp_gene_params[:,i]
-#             LB = result_data.nosamp_search_params.lb_log[i]
-#             UB = result_data.nosamp_search_params.ub_log[i]
-
-#         ax1[i].scatter(result_data.gene_log_lengths,DATA,c='k',s=1,alpha=0.5)
-
-#         ax1[i].set_xlabel('log L')
-#         ax1[i].set_ylabel(name_var[i])
-#         ax1[i].set_ylim([LB,UB])
-#     fig1.tight_layout()
 def plot_param_L_dep(result_data,plot_errorbars=True,nosamp=False,chisq_correct=True,figsize=(12,4),c=2.576):
     fig1,ax1=plt.subplots(nrows=1,ncols=3,figsize=figsize)
 
@@ -274,8 +253,6 @@ def plot_param_L_dep(result_data,plot_errorbars=True,nosamp=False,chisq_correct=
         ax1[i].set_xlabel('log L')
         ax1[i].set_ylabel(name_var[i])
     fig1.tight_layout()
-    # return par
-
 
 def plot_KL(result_data,nbins=15,nosamp=False):
     if not nosamp:
@@ -1015,7 +992,7 @@ class SearchParameters:
         self.ub_log = ub_log
         self.maxiter = maxiter
         self.init_pattern = init_pattern
-        self.use_lengths = True
+        self.use_lengths = use_lengths
 
 class SearchData:
     def __init__(self):
