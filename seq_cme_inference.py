@@ -540,7 +540,7 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
         	attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
         else:
         	attr_names = [spliced_layer[i_data],unspliced_layer[i_data],gene_attr[i_data],cell_attr[i_data]]
-        S,U,gene_names,nCells = import_vlm(loom_filepath,*attr_names)
+        S,U,gene_names,Ncells = import_vlm(loom_filepath,*attr_names)
         #check which genes are represented in the dataset
         # gene_names_vlm = vlm.ra['Gene']
         ann_filt = identify_annotated_genes(gene_names,feat_dict)
@@ -672,7 +672,8 @@ def compute_cluster_labels(len_arr,S_mean,init=np.asarray([[4,-2.5],[4.5,-0.5]])
     return gene_cluster_labels
 
 def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs=[2,2],
-    aesthetics = None):
+    aesthetics = None,spliced_layer='spliced',unspliced_layer='unspliced',gene_attr='Gene',
+                            cell_attr='CellID'):
     """
     Takes a set of genes and generates a SearchData variable with the relevant histograms and counts. Inputs:
     loom_filepath: string pointing to a single .loom file to access.
@@ -685,7 +686,8 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
 
     n_gen = len(gene_set)
 
-    S,U,gene_names,nCells = import_vlm(loom_filepath,spliced_layer,unspliced_layer,gene_attr,cell_attr)
+	attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
+    S,U,gene_names,Ncells = import_vlm(loom_filepath,spliced_layer,unspliced_layer,gene_attr,cell_attr)
     #check which genes are represented in the dataset
     # gene_names_vlm = vlm.ra['Gene']
     ann_filt = identify_annotated_genes(gene_names,feat_dict)
