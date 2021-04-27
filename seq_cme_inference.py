@@ -686,8 +686,8 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
 
     n_gen = len(gene_set)
 
-	attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
-    S,U,gene_names,Ncells = import_vlm(loom_filepath,spliced_layer,unspliced_layer,gene_attr,cell_attr)
+    attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
+    S,U,gene_names,Ncells = import_vlm(loom_filepath,*attr_names)
     #check which genes are represented in the dataset
     # gene_names_vlm = vlm.ra['Gene']
     ann_filt = identify_annotated_genes(gene_names,feat_dict)
