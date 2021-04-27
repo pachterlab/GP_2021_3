@@ -510,8 +510,7 @@ def import_vlm(filename,spliced_layer,unspliced_layer,gene_attr,cell_attr):
 def select_gene_set(loom_filepaths,feat_dict,viz=False,
                           results_to_exclude=[],seed=6,n_gen=10,
                           filt_param=(0.01,0.01,350,350,4,4),aesthetics=((12,4),0.15,3,"Spectral"),
-                            spliced_layer='spliced',unspliced_layer='unspliced',gene_attr='Gene',
-                            cell_attr='CellID'):
+                            attr_names_in=['spliced','unspliced','Gene','CellID']):
     """
     Examines a set of .loom files and selects a set of genes. Inputs:
     loom_filepaths: list of strings pointing to .loom files to access. 
@@ -536,10 +535,15 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
         # vlm = vcy.VelocytoLoom(loom_filepath)
         # Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
         
-        if type(spliced_layer) is str:
-            attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
+        # if type(spliced_layer) is str:
+        #     attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
+        # else:
+        #     attr_names = [spliced_layer[i_data],unspliced_layer[i_data],gene_attr[i_data],cell_attr[i_data]]
+        if all(isinstance(x, list) for x in attr_names_in):
+            attr_names = attr_names_in[i_data]
         else:
-            attr_names = [spliced_layer[i_data],unspliced_layer[i_data],gene_attr[i_data],cell_attr[i_data]]
+            attr_names = attr_names_in
+
         S,U,gene_names,Ncells = import_vlm(loom_filepath,*attr_names)
         #check which genes are represented in the dataset
         # gene_names_vlm = vlm.ra['Gene']
@@ -672,8 +676,7 @@ def compute_cluster_labels(len_arr,S_mean,init=np.asarray([[4,-2.5],[4.5,-0.5]])
     return gene_cluster_labels
 
 def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs=[2,2],
-    aesthetics = None,spliced_layer='spliced',unspliced_layer='unspliced',gene_attr='Gene',
-                            cell_attr='CellID'):
+    aesthetics = None,attr_names):
     """
     Takes a set of genes and generates a SearchData variable with the relevant histograms and counts. Inputs:
     loom_filepath: string pointing to a single .loom file to access.
@@ -686,7 +689,7 @@ def get_gene_data(loom_filepath,feat_dict,gene_set,trunc_gene_set,viz=False,offs
 
     n_gen = len(gene_set)
 
-    attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
+    # attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
     S,U,gene_names,Ncells = import_vlm(loom_filepath,*attr_names)
     #check which genes are represented in the dataset
     # gene_names_vlm = vlm.ra['Gene']
