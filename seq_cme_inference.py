@@ -503,7 +503,7 @@ def import_vlm(filename,spliced_layer,unspliced_layer,gene_attr,cell_attr):
     with lp.connect(filename) as ds:
         S = ds.layers[spliced_layer][:]
         U = ds.layers[unspliced_layer][:]
-        gene_names_vlm = ds.ra[gene_attr]
+        gene_names = ds.ra[gene_attr]
         nCells = len(ds.ca[cell_attr])
     return S,U,gene_names,nCells
 
