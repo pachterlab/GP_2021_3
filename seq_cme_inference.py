@@ -536,7 +536,11 @@ def select_gene_set(loom_filepaths,feat_dict,viz=False,
         # vlm = vcy.VelocytoLoom(loom_filepath)
         # Ncells = len(vlm.ca[list(vlm.ca.keys())[0]])
         
-        S,U,gene_names,nCells = import_vlm(loom_filepath,spliced_layer,unspliced_layer,gene_attr,cell_attr)
+        if type(spliced_layer) is str:
+        	attr_names = [spliced_layer,unspliced_layer,gene_attr,cell_attr]
+        else:
+        	attr_names = [spliced_layer[i_data],unspliced_layer[i_data],gene_attr[i_data],cell_attr[i_data]]
+        S,U,gene_names,nCells = import_vlm(loom_filepath,*attr_names)
         #check which genes are represented in the dataset
         # gene_names_vlm = vlm.ra['Gene']
         ann_filt = identify_annotated_genes(gene_names,feat_dict)
