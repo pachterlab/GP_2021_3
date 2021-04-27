@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import time
 import loompy as lp
 import scipy
-import velocyto as vcy
+# import velocyto as vcy
 # %config InlineBackend.figure_format = 'retina'
 
 import time
