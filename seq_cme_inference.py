@@ -500,7 +500,7 @@ def get_transcriptome(transcriptome_filepath,repeat_thr=15):
     return (len_dict,repeat_dict)
 
 def import_vlm(filename,spliced_layer,unspliced_layer,gene_attr,cell_attr):
-    with lp.connect(loom_filepath) as ds:
+    with lp.connect(filename) as ds:
         S = ds.layers[spliced_layer][:]
         U = ds.layers[unspliced_layer][:]
         gene_names_vlm = ds.ra[gene_attr]
