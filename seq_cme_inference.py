@@ -429,8 +429,8 @@ def get_result_data(result_data,chisq_correct,nosamp,get_errorbars):
 ## Initialization
 ########################
 
-def create_dir(search_data,dataset_dir,ID,DATESTRING=date.today().strftime("%y%m%d"),code_ver='',model='BSD'):
-    file_string = dataset_dir+'gg_'+DATESTRING+'_'+model+'_'+str(search_data.n_pt1)+'x'+str(search_data.n_pt2)+'_'+str(search_data.n_gen)+'gen_'+str(ID)
+def create_dir(search_data,dataset_dir,ID,DATESTRING=date.today().strftime("%y%m%d"),creator='gg',code_ver='',meta='BSD'):
+    file_string = dataset_dir+creator+'_'+DATESTRING+'_'+meta+'_'+str(search_data.n_pt1)+'x'+str(search_data.n_pt2)+'_'+str(search_data.n_gen)+'gen_'+str(ID)
     search_data.set_file_string(file_string)
     try: 
         os.mkdir(file_string) 
