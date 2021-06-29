@@ -1,7 +1,7 @@
 #Parameter input for CME inference 
 dataset_directory : ./loom_fbc/ : folder with dataset loom files
 result_directory : ./ : where to put the result folder
-loom_filenames : pbmc_1k_fbc,pbmc_cite : filenames to integrate
+loom_filenames : pbmc_1k_fbc : filenames to integrate
 transcriptome_filename : gg_200525_genome_polyA_cum_3 : transcriptome location
 polyA_threshold : 15 : minimum polyA count to use for sampling function
 transcriptome_ind : 0 : column of transcriptome file to use (lengths if 0, polyA count if 1)
@@ -17,9 +17,9 @@ phys_ub : 4.2, 2.5, 2.5 : upper bound on same
 search_restarts : 1 : how many times to run the search for each gene
 init_pattern : moments : whether to start the search using method of moments estimate or not; 'random' if not
 use_lengths : True: whether the Poisson sampling for unspliced mRNA should depend on gene length
-maxiter : 5 : number of iterations of gradient descent to perform
-n_pt1 : 11 : number of C_u points to evaluate
-n_pt2 : 12 : number of lambda_s points to evalute
+maxiter : 10 : number of iterations of gradient descent to perform
+n_pt1 : 5 : number of C_u points to evaluate
+n_pt2 : 6 : number of lambda_s points to evalute
 samp_lb : -8, -3.5 : lower limits of C_u and lambda_s
 samp_ub : -3, 1 : upper limits of C_u and lambda_s
 ID_suffix : 1 : folder directory suffix
