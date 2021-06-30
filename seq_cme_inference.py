@@ -21,7 +21,7 @@ import collections
 import warnings
 
 import scipy.stats.mstats
-from scipy.stats import norm
+from scipy.stats import *
 import numdifftools
 	
 
@@ -195,7 +195,7 @@ def resample_opt_mc_viz(result_data,resamp_vec=(1,2,3,4),Ntries=1000,figsize=(8,
         ax1[samp_num].scatter(LOC[:,0],LOC[:,1],c='r',s=3,alpha=0.3)
         ax1[samp_num].set_title('Ngen = '+str(resamp_vec[samp_num]))
 
-def plot_param_marg(result_data,nbin=15,nosamp=False):
+def plot_param_marg(result_data,nbin=15,nosamp=False,fitlaw=norm):
     fig1,ax1=plt.subplots(nrows=1,ncols=3,figsize=(5,2))
 
     param_nm = (r'$\log_{10} b$',r'$\log_{10} \beta$',r'$\log_{10} \gamma$')
@@ -211,11 +211,11 @@ def plot_param_marg(result_data,nbin=15,nosamp=False):
         ax1[i].hist(DATA,nbin,density=True)
     #     print(np.mean(best_phys_params[:,i]))
 
-        mu, std = norm.fit(DATA)
+        fitparams = fitlaw.fit(DATA)
         
         xmin, xmax = ax1[i].get_xlim()
         x = np.linspace(xmin, xmax, 100)
-        p = norm.pdf(x, mu, std)
+        p = fit.pdf(x, *fitparams)
         ax1[i].plot(x, p, 'k', linewidth=2)
         
         ax1[i].set_xlim([LB,UB])
