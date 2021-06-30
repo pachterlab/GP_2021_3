@@ -209,13 +209,12 @@ def plot_param_marg(result_data,nbin=15,nosamp=False,fitlaw=norm):
             LB = result_data.nosamp_search_params.lb_log[i]
             UB = result_data.nosamp_search_params.ub_log[i]
         ax1[i].hist(DATA,nbin,density=True)
-    #     print(np.mean(best_phys_params[:,i]))
 
         fitparams = fitlaw.fit(DATA)
         
         xmin, xmax = ax1[i].get_xlim()
         x = np.linspace(xmin, xmax, 100)
-        p = fit.pdf(x, *fitparams)
+        p = fitlaw.pdf(x, *fitparams)
         ax1[i].plot(x, p, 'k', linewidth=2)
         
         ax1[i].set_xlim([LB,UB])
