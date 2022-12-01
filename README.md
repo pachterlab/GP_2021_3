@@ -1,3 +1,21 @@
-# Transcriptional + sequencing parameter estimation
+# Analysis scripts for "Length Biases in Single-Cell RNA Sequencing of pre-mRNA"
 
-Materials accompanying ["Length Biases in Single-Cell RNA Sequencing of pre-mRNA"](https://www.biorxiv.org/content/10.1101/2021.07.30.454514v1), including a package for the estimation of chemical master equation parameters from scRNA-seq data.
+## Overview
+
+This repository contains all of the quantification, inference, analysis, and visualization code for "Length Biases in Single-Cell RNA Sequencing of pre-mRNA". All analyses use [Monod](https://github.com/pachterlab/monod) version 0.2.5.0. We investigate a variety of 10x v2 and v3 datasets, and find a pervasive length bias in the unspliced counts. Upon fitting a two-stage model of bursty transcription, splicing, and degradation, we discover non-physical trends in parameter values. We provide an explanatory model by proposing that the sequencing of unspliced RNA exhibits a length-dependent bias. Finally, we use the results from this model to investigate the relationships between paired datasets, including the characterization of differences between v2 and v3 technologies and the investigation of marker-like genes that show considerable distributional differences between cell types.
+
+## Repository contents 
+
+* `polyA_ref/`: gene lengths and numbers of poly(A) stretches for the human and mouse genomes.
+* `processing_scripts/`: scripts used to perform preliminary data analysis.
+  * `collect_datasets/`: scripts used to download some of the analyzed datasets. Note that most datasets were downloaded from the command line. The data locations are reported in the article. 
+  * `count_transcripts/`: scripts used to pseudoalign all datasets.
+  * `make_references/`: scripts used to generate genome references, and notebooks used to extract gene lengths and poly(A) stretch counts. The raw `FASTA` files used for the latter analysis can be obtained from Ensembl BioMart by querying gene name, gene start, and gene end properties for Attributes -> Sequences -> Unspliced (Gene).
+* `notebooks/`: notebooks used to perform data analysis.
+  *  `noisefree_10x_pbmc_fit`, `noisefree_10x_heart_fit`, `noisefree_10x_neuron_fit`, and `noisefree_allen_fit`: fits to entire datasets with a model that does not include technical noise.
+  *  `10x_pbmc_fit`, `10x_heart_fit`, `10x_neuron_fit`, and `allen_fit`: grid fits to entire datasets using a length-biased model of technical noise.
+  *  `celltypes_10x_pbmc_fit` and `celltypes_allen_fit`: fits to cell type populations using a length-biased model of technical noise.
+  *  `MoM_10x_pbmc_fit`: a benchmark for the method of moments initialization used for inference.
+  *  `nolengths_10x_pbmc_fit`: a fit using a length-independent model of technical noise.
+  *  `figure_generation`: analysis and visualization of results produced by all of the other notebooks.
+  *  `figs/`: figures output by `figure_generation.ipynb`.
