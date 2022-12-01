@@ -19,3 +19,19 @@ This repository contains all of the quantification, inference, analysis, and vis
   *  `nolengths_10x_pbmc_fit`: a fit using a length-independent model of technical noise.
   *  `figure_generation`: analysis and visualization of results produced by all of the other notebooks.
   *  `figs/`: figures output by `figure_generation.ipynb`.
+
+## Software and hardware requirements
+
+Data analysis was performed using up to 60 CPUs (3.7GHz each) on a dedicated server. The analyses used the following software:
+
+```
+python 3.9.1
+scipy 1.9.1
+numpy 1.23.2
+matplotlib 3.6.0
+loompy 3.0.6
+numdifftools 0.9.40
+anndata 0.8.0
+kb-python 0.26.0
+monod 0.2.5.0
+```
