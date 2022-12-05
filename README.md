@@ -9,7 +9,7 @@ This repository contains all of the quantification, inference, analysis, and vis
 
 All analyses use [Monod](https://github.com/pachterlab/monod) version 0.2.5.0. For [documentation](https://monod-examples.readthedocs.io/en/latest/) and [examples](https://github.com/pachterlab/monod_examples), see the corresponding pages.
 
-All raw data are available on [Zenodo](https://zenodo.org/record/7388133).
+All raw data and *Monod* results are available on [Zenodo](https://zenodo.org/record/7388133).
 
 ## Repository contents 
 
