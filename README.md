@@ -1,3 +1,6 @@
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7388133.svg)](https://doi.org/10.5281/zenodo.7388133)
+
 # Analysis scripts for "Length Biases in Single-Cell RNA Sequencing of pre-mRNA"
 
 ## Overview
@@ -5,6 +8,8 @@
 This repository contains all of the quantification, inference, analysis, and visualization code for "Length Biases in Single-Cell RNA Sequencing of pre-mRNA". We investigate a variety of 10x v2 and v3 datasets, and find a pervasive length bias in the unspliced counts. Upon fitting a two-stage model of bursty transcription, splicing, and degradation, we discover non-physical trends in parameter values. We provide an explanatory model by proposing that the sequencing of unspliced RNA exhibits a length-dependent bias. Finally, we use the results from this model to investigate the relationships between paired datasets, including the characterization of differences between v2 and v3 technologies and the investigation of marker-like genes that show considerable distributional differences between cell types.
 
 All analyses use [Monod](https://github.com/pachterlab/monod) version 0.2.5.0. For [documentation](https://monod-examples.readthedocs.io/en/latest/) and [examples](https://github.com/pachterlab/monod_examples), see the corresponding pages.
+
+All raw data are available on [Zenodo](https://zenodo.org/record/7388133).
 
 ## Repository contents 
 
